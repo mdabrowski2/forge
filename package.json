@@ -1,0 +1,42 @@
+{
+  "name": "forge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "module": "src/main.tsx",
+  "main": "dist/main.mjs",
+  "author": "mateu",
+  "scripts": {
+    "dev": "bun run src/main.tsx",
+    "typecheck": "tsc --noEmit",
+    "electron:build": "bun build electron/main.ts --target node --format esm --external electron --outfile dist/main.mjs && bun build electron/preload.ts --target node --format cjs --external electron --outfile dist/preload.cjs",
+    "electron:start": "bun run electron:build && electron .",
+    "electron:package": "bun run electron:build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/openai-compatible": "latest",
+    "@opentui/core": "^0.4.5",
+    "@opentui/solid": "^0.4.5",
+    "ai": "latest",
+    "solid-js": "1.9.12",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "electron": "latest",
+    "electron-builder": "latest",
+    "typescript": "^5.8.0"
+  },
+  "build": {
+    "appId": "dev.forge",
+    "productName": "forge",
+    "files": ["dist/**", "public/**", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": ["portable"]
+    }
+  }
+}

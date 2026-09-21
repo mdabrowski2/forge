@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>forge</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">forge</span>
+        <button id="new-session" title="New session">+ new</button>
+      </div>
+      <div id="session-list"></div>
+    </aside>
+
+    <main id="main">
+      <header id="topbar">
+        <div class="topbar-left">
+          <button id="events-toggle" title="Toggle transparency cards">👁 events</button>
+        </div>
+        <div class="topbar-right">
+          <span id="model-label">model</span>
+          <select id="model-select"></select>
+        </div>
+      </header>
+
+      <div id="chat"></div>
+
+      <footer id="composer">
+        <textarea id="input" placeholder="Ask forge…" rows="1"></textarea>
+        <button id="send">send</button>
+      </footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

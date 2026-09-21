@@ -1,0 +1,2 @@
+# normalize everything to LF in the repo and on checkout, on every platform
+* text=auto eol=lf
