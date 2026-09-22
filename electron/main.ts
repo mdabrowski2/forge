@@ -238,7 +238,7 @@ ipcMain.handle("forge:newSession", () => {
 
 ipcMain.handle("forge:chat", async (_e, text: string) => {
   if (!currentHarness || !currentModel) {
-    win?.webContents.send("forge:error", "No model selected")
+    sendToUI("forge:error", "No model selected")
     return
   }
   const trimmed = text.trim()
@@ -255,21 +255,21 @@ ipcMain.handle("forge:chat", async (_e, text: string) => {
       messages: session.messages,
       cwd: session.cwd,
       sessionId: session.id,
-      onDelta: (d) => win?.webContents.send("forge:delta", d),
+      onDelta: (d) => sendToUI("forge:delta", d),
       onTransparency: (e) => {
         appendEvent(session, { ...e, turn })
         transcript.push(e)
         if (transcript.length > 2000) transcript.shift()
-        win?.webContents.send("forge:transparency", { ...e, turn })
+        sendToUI("forge:transparency", { ...e, turn })
       },
       signal: abortController.signal,
     })
     for (const m of full.messages) appendMessage(session, m)
-    win?.webContents.send("forge:done", full.text)
+    sendToUI("forge:done", full.text)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     appendMessage(session, { role: "assistant", content: `⚠ ${msg}`, timestamp: Date.now() })
-    win?.webContents.send("forge:error", msg)
+    sendToUI("forge:error", msg)
   }
 })
 
@@ -295,7 +295,7 @@ ipcMain.handle("forge:command", async (_e, text: string) => {
       push: (e) => {
         transcript.push(e)
         if (transcript.length > 2000) transcript.shift()
-        win?.webContents.send("forge:transparency", e)
+        sendToUI("forge:transparency", e)
       },
     }
   )
