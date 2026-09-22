@@ -43,7 +43,7 @@ let currentModel = ""
 let session: Session = newSession("", defaultConfig().cwd)
 let abortController: AbortController | null = null
 let config: ForgeConfig = defaultConfig()
-let modLoadResult: ModLoadResult = { loaded: [], failed: [] }
+let modLoadResult: ModLoadResult = { loaded: [], failed: [], dir: modsDir }
 const transcript: TransparencyEvent[] = []
 
 // restores whichever model/harness a session last used, so switching
@@ -121,6 +121,7 @@ const boot = async () => {
   config = loadConfig()
 
   modLoadResult = await loadMods(config)
+  console.log(`[mods] dir: ${modLoadResult.dir}`)
   for (const f of modLoadResult.failed) console.error(`[mods] ${f.name}: ${f.error}`)
   if (modLoadResult.loaded.length) console.log(`[mods] loaded: ${modLoadResult.loaded.join(", ")}`)
 

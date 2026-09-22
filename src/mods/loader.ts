@@ -15,6 +15,8 @@ export const modsDir = join(dataDir, "mods")
 export interface ModLoadResult {
   loaded: string[]
   failed: { name: string; error: string }[]
+  /** the directory that was scanned */
+  dir: string
 }
 
 const ENTRY_CANDIDATES = ["index.js", "index.mjs"]
@@ -24,7 +26,7 @@ export async function loadMods(
   dir: string = modsDir,
   opts: { fresh?: boolean } = {}
 ): Promise<ModLoadResult> {
-  const result: ModLoadResult = { loaded: [], failed: [] }
+  const result: ModLoadResult = { loaded: [], failed: [], dir }
   if (!existsSync(dir)) return result
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
