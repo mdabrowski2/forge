@@ -27,9 +27,28 @@ export const App = (props: {
 
   const provider = () => props.providers.find((p) => p.id === providerId()) ?? props.providers[0]
 
+  const cycleProvider = () => {
+    if (props.providers.length < 2) return
+    const i = props.providers.findIndex((p) => p.id === providerId())
+    const next = props.providers[(i + 1) % props.providers.length]!
+    setProviderId(next.id)
+    setModel(next.defaultModel)
+  }
+
+  const cycleModel = () => {
+    const p = provider()
+    if (!p || p.models.length < 2) return
+    const i = p.models.indexOf(model())
+    setModel(p.models[(i + 1) % p.models.length]!)
+  }
+
   useKeyboard((key) => {
     if (key.ctrl && key.name === "c") {
       process.exit(0)
+    } else if (key.ctrl && key.name === "p") {
+      cycleProvider()
+    } else if (key.ctrl && key.name === "m") {
+      cycleModel()
     }
   })
 
@@ -53,9 +72,8 @@ export const App = (props: {
         sessionId: props.session.id,
         onDelta: (d) => setStreaming(d),
       })
-      const asstMsg: ChatMessage = { role: "assistant", content: result.text, timestamp: Date.now() }
-      setMessages((m) => [...m, asstMsg])
       for (const m of result.messages) appendMessage(props.session, m)
+      setMessages(() => [...props.session.messages])
     } catch (e) {
       const errMsg: ChatMessage = {
         role: "assistant",
@@ -85,6 +103,7 @@ export const App = (props: {
         </text>
         <text fg={t.muted}>
           {provider()?.name ?? "no provider"} · {model() || "no model"}
+          {provider() && provider()!.status !== "ok" ? ` (${provider()!.status})` : ""}
         </text>
       </box>
 
