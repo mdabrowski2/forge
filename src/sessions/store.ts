@@ -83,10 +83,15 @@ const safeParseLines = <T>(text: string, file: string): T[] => {
   return out
 }
 
-export function loadEvents(id: string): unknown[] {
+export const MAX_EVENTS_LOAD = 500
+
+// Bounded read, honestly labeled: caps retained memory, NOT parse cost —
+// the whole file is still parsed (full disk rotation is follow-up work).
+// Callers showing history must treat the result as the latest-N window.
+export function loadEvents(id: string, limit: number = MAX_EVENTS_LOAD): unknown[] {
   const file = join(sessionsDir, `${id}.events.jsonl`)
   if (!existsSync(file)) return []
-  return safeParseLines<unknown>(readFileSync(file, "utf-8"), file)
+  return safeParseLines<unknown>(readFileSync(file, "utf-8"), file).slice(-limit)
 }
 
 export function loadSession(id: string): Session | null {

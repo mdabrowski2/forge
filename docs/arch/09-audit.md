@@ -7,7 +7,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 - [x] 1. **TUI turn persistence asymmetry** — shipped (hardening Wave 1): `send()` persists all result messages, then mirrors the store into the render list.
 - [x] 2. **Malformed config silent fallback** — shipped (hardening Wave 1): corrupt `config.json` is copied to `config.json.bak.<epochMillis>-<rand>` with a `[config]` log line before defaults load.
 - [ ] 3. **Session-list crash surface** (proposed, ~0.5d, `src/sessions/store.ts:129-136`): one corrupt `.jsonl` line throws inside `JSON.parse` and can break boot-resume. Fix: per-file try/catch; move bad files to `~/.forge/sessions/quarantine/` (a holding folder for corrupt files) and continue.
-- [ ] 4. **Unbounded session/event files** (proposed, ~1d): long sessions grow JSONL (one-JSON-per-line) files forever; `loadEvents` parses everything into memory. Fix: rotation (new file per N messages) or cap + lazy load.
+- [x] 4. **Unbounded session/event files** — read-slice shipped (hardening Wave 1): `loadEvents` returns the latest 500 by default (memory bound; parse cost unchanged). Full rotation still proposed.
 
 ## P1 — security
 
