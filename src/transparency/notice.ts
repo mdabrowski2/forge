@@ -25,7 +25,7 @@ const isSensitiveKey = (key: string): boolean =>
     .split(/(?=[A-Z])|[_-]+/)
     .some((tok) => SENSITIVE.has(tok.toLowerCase()))
 
-const redactValue = (v: unknown): unknown => {
+export const redactValue = (v: unknown): unknown => {
   if (typeof v === "string") return v
   if (Array.isArray(v)) return v.map(redactValue)
   if (v !== null && typeof v === "object")

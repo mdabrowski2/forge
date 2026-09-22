@@ -5,7 +5,7 @@ import { join } from "path"
 import { dataDir } from "../config"
 
 const logDir = join(dataDir, "logs")
-const logFile = join(logDir, "forge.log")
+export const logFile = join(logDir, "forge.log")
 
 export function logEvent(event: unknown): void {
   try {
