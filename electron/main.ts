@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell, WebContentsView } from "electron"
 import { fileURLToPath } from "url"
 import path from "path"
-import { existsSync, statSync } from "fs"
-import { homedir } from "os"
+import { runCommand } from "./commands"
+import { publishNotice, truncateNotice } from "../src/transparency/notice"
 import { defaultConfig, loadConfig, saveConfig } from "../src/config"
 import type { ForgeConfig, ModConfig } from "../src/config"
 import { findRepoRoot, loadRepoConfig, saveRepoConfig } from "../src/repo-config"
@@ -248,34 +248,22 @@ ipcMain.handle("forge:getSystemPrompt", () => getSystemPrompt())
 
 // mod commands — /name args in the chat input routes here instead of the model
 ipcMain.handle("forge:command", async (_e, text: string) => {
-  const m = typeof text === "string" ? text.trim().match(/^\/(\S+)\s*([\s\S]*)$/) : null
-  if (!m) return { ok: false, error: "not a command" }
-  const [, name, args] = m
-  // a slash command can be the very first thing typed in a session, before
-  // any chat turn has run setActiveSession — mod commands need it too, so a
-  // repo/session-scoped mod config resolves correctly even then
-  registry.setActiveSession({ id: session.id, cwd: session.cwd })
-
-  // core command, not mod-provided — checked first so a mod can never shadow it
-  if (name === "cd") {
-    const target = args.trim()
-    if (!target) return { ok: true, text: `cwd: ${session.cwd}` }
-    const resolved = path.resolve(session.cwd, target.replace(/^~(?=$|\/)/, homedir()))
-    if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
-      return { ok: false, error: `not a directory: ${resolved}` }
+  const r = await runCommand(text, { session, registry })
+  // both paths emit: failed commands are the highest-value debugging case
+  publishNotice(
+    "command",
+    r.name || "(not-a-command)",
+    { args: r.args, ok: r.ok, output: truncateNotice(r.ok ? (r.text ?? "") : (r.error ?? "")) },
+    {
+      session,
+      push: (e) => {
+        transcript.push(e)
+        if (transcript.length > 2000) transcript.shift()
+        win?.webContents.send("forge:transparency", e)
+      },
     }
-    session.cwd = resolved
-    saveSessionMeta(session.id, { cwd: resolved })
-    return { ok: true, text: `cwd: ${resolved}` }
-  }
-
-  const cmd = registry.getCommands().find((c) => c.name === name)
-  if (!cmd) return { ok: false, error: `unknown command: /${name}` }
-  try {
-    return { ok: true, text: await cmd.run(args) }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
+  )
+  return r.ok ? { ok: true, text: r.text } : { ok: false, error: r.error }
 })
 
 ipcMain.handle("forge:getTranscript", () => transcript)

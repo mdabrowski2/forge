@@ -91,7 +91,9 @@ loop.ts settings += `providerOptions: opts.thinking && capabilities?.reasoningEf
 
 ---
 
-### Task 2: Command executions leave a trace (audit #1)
+### Task 2: Command executions leave a trace (audit #1) — SHIPPED
+
+Implemented as `runCommand(text, {session, registry})` in `electron/commands.ts` (headless-testable seam) + handler emit via `publishNotice('command', …, {session, push})` on **both** ok and error paths (`output` = result text / error message, truncated). Proof `scripts/observability-command-test.ts` covers ok, cd-fail, throw, unknown, non-command. Turn tag defaults to `messages.length` per contract.
 
 **Files:** `electron/main.ts` (`forge:command` + `forge:chat` turn tagging for notices), docs
 
