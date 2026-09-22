@@ -7,6 +7,7 @@ import { logEvent } from "../transparency/log"
 import type { TransparencyEvent } from "../transparency/types"
 import { registry, type ToolRuntime } from "../mods/registry"
 import { createTools } from "./tools"
+import { describeTools } from "./tools/describe"
 
 export type { TransparencyEvent } from "../transparency/types"
 
@@ -36,13 +37,17 @@ const MAX_STEPS = 8
 
 export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult> {
   const started = Date.now()
-  const system = getSystemPrompt()
 
   const emit = (event: TransparencyEvent) => {
     logEvent(event)
     opts.onTransparency?.(event)
+    registry.emitHook("transparencyEvent", event)
   }
   registry.setEmitSink(emit)
+  // must run before getSystemPrompt() — it reads the active session to know
+  // which skills are loaded for this turn
+  if (opts.sessionId) registry.setActiveSession({ id: opts.sessionId, cwd: opts.cwd })
+  const system = getSystemPrompt()
 
   const runtime: ToolRuntime = {
     cwd: opts.cwd,
@@ -93,14 +98,15 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
   for (let step = 0; step < MAX_STEPS; step++) {
     const stepStarted = Date.now()
     const result = streamText({
-      model: opts.provider.getModel(opts.model),
+      model: opts.provider.getModelForSession?.(opts.model, opts.sessionId ?? "") ?? opts.provider.getModel(opts.model),
       system,
       messages: modelMessages,
       tools,
       abortSignal: opts.signal,
-      // Ollama's OpenAI-compatible endpoint maps reasoningEffort → reasoning_effort,
-      // which enables the thinking trace for Qwen3/GPT-OSS/DeepSeek models
-      ...(opts.thinking && opts.provider.id === "ollama"
+      // Reasoning effort is a provider *capability*, not an identity check:
+      // any OpenAI-compatible endpoint that honors `reasoning_effort`
+      // (local Ollama, remote vLLM, …) opts in via capabilities.reasoningEffort.
+      ...(opts.thinking && opts.provider.capabilities?.reasoningEffort
         ? { providerOptions: { ollama: { reasoningEffort: "high" } } }
         : {}),
       onLanguageModelCallStart: (e) => {
@@ -112,6 +118,7 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
           model: opts.model,
           system: standardized.system ?? system,
           messages: standardized.messages ?? opts.messages,
+          tools: describeTools(tools),
           settings: {
             temperature: e.temperature,
             topP: e.topP,

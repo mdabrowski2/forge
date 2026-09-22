@@ -8,6 +8,8 @@ export type TransparencyEvent =
       model: string
       system: string
       messages: unknown[]
+      /** serializable tool definitions sent as the call's `tools` block */
+      tools: { name: string; description: string; inputSchema: unknown }[]
       settings: Record<string, unknown>
       timestamp: number
     }
