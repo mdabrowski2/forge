@@ -12,12 +12,12 @@ Session ids look like `<epochMillis>-<random6>` (e.g. `1727456400000-a1b2c3`), c
 - `~/.forge/sessions/abc123.jsonl` — one chat message (JSON object) per line, append-only; corrupt lines are skipped with a `[sessions] skipped N corrupt line(s)` count, never a throw; the list title is the first user message truncated to 60 characters.
 - `~/.forge/sessions/abc123.events.jsonl` — transparency events, each stamped with its turn number, so the UI can replay them after reload (same skip-and-count guard). Reads return the latest 500 by default (`MAX_EVENTS_LOAD`; pass `Infinity` to opt out) — the bound caps retained memory, not parse cost; the file stays intact on disk.
 - `~/.forge/sessions/abc123.meta.json` — small bookkeeping sidecar: last-used `{model, claudeCodeSessionId, cwd, modOverrides, loadedSkills}`; writes merge into existing keys rather than replacing the file.
-- `listSessions()` reads every message file (skipping `*.events.jsonl`), newest-first by last-update time; boot reopens index `[0]` (the most recent).
+- `listSessions()` reads every message file (skipping `*.events.jsonl`), newest-first by last-update time; boot reopens index `[0]` (the most recent). A session file that cannot be read at all is moved with its two sidecars to `sessions/quarantine/` plus a `quarantine.log` manifest line, and the list continues without it.
 - Each session has its own working directory (`cwd`, not global): `/cd <dir>` validates then saves it; every tool runs against that session's cwd.
 
 ## Repo scope (`src/repo-config.ts`)
 
-`findRepoRoot(cwd)` walks parent directories for a `.git` folder and falls back to the cwd itself for scratch dirs. Per-repo mod settings live at `~/.forge/repos/<base64url(repoRoot)>.json` (base64url = filename-safe encoding of the repo path, so `/Users/a/proj` becomes one file) with shape `{mods}`. Missing file and corrupt file both read as `{mods:{}}` today (quarantine proposed in `09-audit.md#P0-3`).
+`findRepoRoot(cwd)` walks parent directories for a `.git` folder and falls back to the cwd itself for scratch dirs. Per-repo mod settings live at `~/.forge/repos/<base64url(repoRoot)>.json` (base64url = filename-safe encoding of the repo path, so `/Users/a/proj` becomes one file) with shape `{mods}`. Missing file and corrupt file both read as `{mods:{}}`.
 
 ## Mod resolution order
 

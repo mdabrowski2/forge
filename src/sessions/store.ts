@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs"
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 import { dataDir } from "../config"
@@ -147,7 +147,40 @@ export function listSessions(): Session[] {
   mkdirSync(sessionsDir, { recursive: true })
   return readdirSync(sessionsDir)
     .filter((f) => f.endsWith(".jsonl") && !f.endsWith(".events.jsonl"))
-    .map((f) => loadSession(f.replace(/\.jsonl$/, "")))
+    .map((f) => {
+      const id = f.replace(/\.jsonl$/, "")
+      try {
+        return loadSession(id)
+      } catch (e) {
+        quarantineSession(id, e)
+        return null
+      }
+    })
     .filter((s): s is Session => s !== null)
     .sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+// A session that cannot be read at all (not merely bad lines — those are
+// skipped by safeParseLines) is moved aside with all three sidecars plus a
+// manifest line, so it never silently vanishes from the list.
+const quarantineSession = (id: string, cause: unknown): void => {
+  const qdir = join(sessionsDir, "quarantine")
+  mkdirSync(qdir, { recursive: true })
+  for (const suffix of [".jsonl", ".events.jsonl", ".meta.json"]) {
+    const src = join(sessionsDir, `${id}${suffix}`)
+    if (existsSync(src)) {
+      try {
+        renameSync(src, join(qdir, `${id}${suffix}`))
+      } catch {
+        /* best-effort per file */
+      }
+    }
+  }
+  const reason = cause instanceof Error ? cause.message : String(cause)
+  try {
+    appendFileSync(join(qdir, "quarantine.log"), JSON.stringify({ id, timestamp: Date.now(), reason }) + "\n")
+  } catch {
+    /* best-effort */
+  }
+  console.error(`[sessions] quarantined session ${id}: ${reason}`)
 }
