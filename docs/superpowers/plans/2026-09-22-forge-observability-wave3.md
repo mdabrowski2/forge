@@ -42,9 +42,13 @@
 
 ---
 
-### Task 1: `notice` event + constructor + settings enrichment
+### Task 1: `notice` event + hardened constructor + fan-out + settings (split 1a/1b per red-team)
 
-**Files:** `src/transparency/types.ts`, `src/transparency/notice.ts`, `src/agent/loop.ts`, `src/harness/claude-code-cli-harness.ts`
+**Files:** `src/transparency/types.ts`, `src/transparency/notice.ts`, `src/agent/loop.ts` (`export const MAX_STEPS`), `src/harness/claude-code-cli-harness.ts`
+
+**1a — types + `notice()`/`truncateNotice()`/`publishNotice()`** (`NoticeSinks {session?, turn?, push?}`; turn defaults to `messages.length`; always log + hook, append/push when given). Redaction is token-based (`monkey`/`keyboard` survive; `apiKey`/`client_secret`/`accessToken` redacted); truncation centralized for bare strings; bare-string passthrough is a documented limitation. Proofs: nested/camel redaction, monkey survival, exact marker math, round-trip, fan-out (push + append + turn tag).
+
+**1b — settings enrichment**: single `reasoningOn` source feeding both the `streamText` spread and `request.settings` (`providerOptions` + `maxSteps`); CLI settings `{transport, allowedTools}`. Proof: captured-request e2e against local Ollama asserting both keys (`maxSteps === 8`).
 
 - [ ] **Step 1: RED — construct + serialize round-trip fails (module missing)**
 

@@ -48,7 +48,7 @@ function runClaudeCodeProcess(opts: TurnOptions, resumeId: string | undefined): 
       description: "CLI-backend tool (schema held server-side)",
       inputSchema: { kind: "cli-managed" },
     })),
-    settings: {},
+    settings: { transport: "cli-subprocess", allowedTools: ALLOWED_TOOLS },
     timestamp: Date.now(),
   })
 

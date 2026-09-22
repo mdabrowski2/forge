@@ -36,3 +36,6 @@ export type TransparencyEvent =
     }
   // escape hatch for mods — rides the same transparency channel (persists + replays)
   | { type: "custom"; callId: string; mod: string; name: string; data: unknown; timestamp: number }
+  // core notices (commands, mutations, boot, hooks, CLI, integrations) —
+  // same channel, no owning mod; turn-less unless a producer tags one
+  | { type: "notice"; callId: string; source: string; name: string; data: unknown; timestamp: number }

@@ -33,7 +33,7 @@ export interface ChatTurnResult {
   messages: ChatMessage[]
 }
 
-const MAX_STEPS = 8
+export const MAX_STEPS = 8
 
 export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult> {
   const started = Date.now()
@@ -97,6 +97,9 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const stepStarted = Date.now()
+    // single source for the reasoning flag: the call below AND the
+    // transparency record must never disagree about what was requested
+    const reasoningOn = Boolean(opts.thinking && opts.provider.capabilities?.reasoningEffort)
     const result = streamText({
       model: opts.provider.getModelForSession?.(opts.model, opts.sessionId ?? "") ?? opts.provider.getModel(opts.model),
       system,
@@ -106,9 +109,7 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
       // Reasoning effort is a provider *capability*, not an identity check:
       // any OpenAI-compatible endpoint that honors `reasoning_effort`
       // (local Ollama, remote vLLM, …) opts in via capabilities.reasoningEffort.
-      ...(opts.thinking && opts.provider.capabilities?.reasoningEffort
-        ? { providerOptions: { ollama: { reasoningEffort: "high" } } }
-        : {}),
+      ...(reasoningOn ? { providerOptions: { ollama: { reasoningEffort: "high" } } } : {}),
       onLanguageModelCallStart: (e) => {
         const standardized = e as unknown as { system?: string; messages?: unknown[] }
         emit({
@@ -123,6 +124,8 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
             temperature: e.temperature,
             topP: e.topP,
             maxOutputTokens: e.maxOutputTokens,
+            providerOptions: reasoningOn ? { reasoningEffort: "high" } : {},
+            maxSteps: MAX_STEPS,
           },
           timestamp: Date.now(),
         })
