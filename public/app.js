@@ -206,7 +206,7 @@ const replayEvents = (events) => {
       if (e.type === "request") {
         const c = makeCard("request", `request · ${e.provider} · ${e.model}`)
         c.body.textContent = JSON.stringify(
-          { settings: e.settings, system: e.system, messages: e.messages },
+          { settings: e.settings, system: e.system, messages: e.messages, tools: e.tools ?? "(not recorded — pre Wave-3)" },
           null,
           2
         )
@@ -263,6 +263,11 @@ const replayEvents = (events) => {
         c.body.textContent = JSON.stringify(e, null, 2)
         anchor.before(c.card)
         req = null
+      } else if (e.type === "notice") {
+        // turn-less by contract — feed-end append, never anchored, never dropped
+        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`)
+        c.body.textContent = JSON.stringify(e.data, null, 2)
+        chat.appendChild(c.card)
       }
     }
   }
@@ -374,7 +379,7 @@ const onTransparency = (event) => {
   if (event.type === "request") {
     const c = makeCard("request", `request · ${event.provider} · ${event.model}`)
     c.body.textContent = JSON.stringify(
-      { settings: event.settings, system: event.system, messages: event.messages },
+      { settings: event.settings, system: event.system, messages: event.messages, tools: event.tools ?? "(not recorded — pre Wave-3)" },
       null,
       2
     )
@@ -445,6 +450,10 @@ const onTransparency = (event) => {
     appendCard(c.card)
     currentRequest = null
     removeLoader()
+  } else if (event.type === "notice") {
+    const c = makeCard("notice", `🔔 ${event.source} · ${event.name}`)
+    c.body.textContent = JSON.stringify(event.data, null, 2)
+    appendCard(c.card)
   }
 }
 
@@ -1210,6 +1219,19 @@ const boot = async () => {
   renderMessages(session.messages)
   replayEvents(session.events)
   renderSessions(await window.forge.listSessions())
+  // boot diagnostics (broken mods, skipped providers, ...) arrive as notices
+  // in the per-process transcript — feed-end appends, same contract as replay
+  try {
+    for (const e of await window.forge.getTranscript()) {
+      if (e && e.type === "notice") {
+        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`)
+        c.body.textContent = JSON.stringify(e.data, null, 2)
+        chat.appendChild(c.card)
+      }
+    }
+  } catch {
+    /* transcript is best-effort; forge.log remains the durable record */
+  }
 
   // live transparency events only (history lives in ~/.forge/logs/forge.log)
   window.forge.onTransparency(onTransparency)
