@@ -49,11 +49,13 @@ let modLoadResult: ModLoadResult = { loaded: [], failed: [], dir: modsDir }
 const transcript: TransparencyEvent[] = []
 
 // shared live sink for mutation/notice events (chat turns have their own;
-// this keeps one ring-cap + send path for everything else)
+// this keeps one ring-cap + send path for everything else). Turn-tagged so
+// live routing matches replay routing exactly (see rendering contract).
 const pushToUI = (e: TransparencyEvent) => {
-  transcript.push(e)
+  const tagged = { ...e, turn: session.messages.length }
+  transcript.push(tagged)
   if (transcript.length > 2000) transcript.shift()
-  win?.webContents.send("forge:transparency", e)
+  win?.webContents.send("forge:transparency", tagged)
 }
 
 // restores whichever model/harness a session last used, so switching
@@ -251,7 +253,7 @@ ipcMain.handle("forge:chat", async (_e, text: string) => {
         appendEvent(session, { ...e, turn })
         transcript.push(e)
         if (transcript.length > 2000) transcript.shift()
-        win?.webContents.send("forge:transparency", e)
+        win?.webContents.send("forge:transparency", { ...e, turn })
       },
       signal: abortController.signal,
     })
@@ -281,6 +283,8 @@ ipcMain.handle("forge:command", async (_e, text: string) => {
     { args: r.args, ok: r.ok, output: truncateNotice(r.ok ? (r.text ?? "") : (r.error ?? "")) },
     {
       session,
+      // turn-tagged like the chat path so live routing matches replay
+      turn: session.messages.length,
       push: (e) => {
         transcript.push(e)
         if (transcript.length > 2000) transcript.shift()

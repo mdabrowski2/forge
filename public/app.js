@@ -204,7 +204,7 @@ const replayEvents = (events) => {
     let req = null
     for (const e of evts) {
       if (e.type === "request") {
-        const c = makeCard("request", `request · ${e.provider} · ${e.model}`)
+        const c = makeCard("request", `request · ${e.provider} · ${e.model}`, e)
         c.body.textContent = JSON.stringify(
           { settings: e.settings, system: e.system, messages: e.messages, tools: e.tools ?? "(not recorded — pre Wave-3)" },
           null,
@@ -215,7 +215,7 @@ const replayEvents = (events) => {
       } else if (e.type === "reasoning") {
         if (!req) continue
         if (!req.reasonCard) {
-          const c = makeCard("reasoning", "reasoning")
+          const c = makeCard("reasoning", "reasoning", e)
           req.card.after(c.card)
           req.reasonCard = c
         }
@@ -225,7 +225,7 @@ const replayEvents = (events) => {
       } else if (e.type === "chunk") {
         if (!req) continue
         if (!req.streamCard) {
-          const c = makeCard("stream", "stream")
+          const c = makeCard("stream", "stream", e)
           req.card.after(c.card)
           req.streamCard = c
         }
@@ -235,37 +235,39 @@ const replayEvents = (events) => {
           `stream · ${req.chunkCount} chunks · ${req.chars} chars`
         req.streamCard.body.textContent += e.text
       } else if (e.type === "tool-call") {
-        const c = makeCard("tool-call", `🔧 ${e.tool}`)
+        const c = makeCard("tool-call", `🔧 ${e.tool}`, e)
         c.body.textContent = JSON.stringify(e.args, null, 2)
         anchor.before(c.card)
       } else if (e.type === "tool-result") {
         const c = makeCard(
           "tool-result",
-          e.ok ? `✅ ${e.tool} · ${e.durationMs}ms` : `❌ ${e.tool} · failed`
+          e.ok ? `✅ ${e.tool} · ${e.durationMs}ms` : `❌ ${e.tool} · failed`,
+          e
         )
         if (!e.ok) c.card.classList.add("error")
         c.body.textContent = e.result
         anchor.before(c.card)
       } else if (e.type === "custom") {
-        const c = makeCard("custom", `${e.mod} · ${e.name}`)
+        const c = makeCard("custom", `${e.mod} · ${e.name}`, e)
         c.body.textContent = JSON.stringify(e.data, null, 2)
         anchor.before(c.card)
       } else if (e.type === "finish") {
         const c = makeCard(
           "finish",
-          `finish · ${e.finishReason} · ${e.latencyMs}ms · ${e.usage.inputTokens}/${e.usage.outputTokens} tokens`
+          `finish · ${e.finishReason} · ${e.latencyMs}ms · ${e.usage.inputTokens}/${e.usage.outputTokens} tokens`,
+          e
         )
         c.body.textContent = JSON.stringify(e, null, 2)
         anchor.before(c.card)
         req = null
       } else if (e.type === "error") {
-        const c = makeCard("error", `error · ${e.message}`)
+        const c = makeCard("error", `error · ${e.message}`, e)
         c.body.textContent = JSON.stringify(e, null, 2)
         anchor.before(c.card)
         req = null
       } else if (e.type === "notice") {
         // turn-less by contract — feed-end append, never anchored, never dropped
-        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`)
+        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`, e)
         c.body.textContent = JSON.stringify(e.data, null, 2)
         chat.appendChild(c.card)
       }
@@ -308,9 +310,15 @@ const renderModels = (providers) => {
 
 // ---- transparency cards --------------------------------------------------
 
-const makeCard = (type, summaryText) => {
+// shared routing predicate (rendering contract): turn-tagged events belong
+// to the session feed, turn-less ones (boot notices, out-of-turn notices)
+// to the system feed. Used by BOTH replayEvents and onTransparency —
+// keep them in sync or live and history will disagree.
+const eventScope = (e) => (e && e.turn === undefined ? "sys" : "sess");
+
+const makeCard = (type, summaryText, event) => {
   const card = document.createElement("div")
-  card.className = `t-card ${type}`
+  card.className = `t-card ${type} ${event ? eventScope(event) : ""}`
   const header = document.createElement("div")
   header.className = "t-header"
   const arrow = document.createElement("span")
@@ -377,7 +385,7 @@ const removeLoader = () => {
 
 const onTransparency = (event) => {
   if (event.type === "request") {
-    const c = makeCard("request", `request · ${event.provider} · ${event.model}`)
+    const c = makeCard("request", `request · ${event.provider} · ${event.model}`, event)
     c.body.textContent = JSON.stringify(
       { settings: event.settings, system: event.system, messages: event.messages, tools: event.tools ?? "(not recorded — pre Wave-3)" },
       null,
@@ -392,7 +400,7 @@ const onTransparency = (event) => {
   } else if (event.type === "reasoning") {
     if (!currentRequest) return
     if (!currentRequest.reasonCard) {
-      const c = makeCard("reasoning", "reasoning")
+      const c = makeCard("reasoning", "reasoning", event)
       currentRequest.card.after(c.card)
       currentRequest.reasonCard = c
     }
@@ -403,7 +411,7 @@ const onTransparency = (event) => {
   } else if (event.type === "chunk") {
     if (!currentRequest) return
     if (!currentRequest.streamCard) {
-      const c = makeCard("stream", "stream")
+      const c = makeCard("stream", "stream", event)
       currentRequest.card.after(c.card)
       currentRequest.streamCard = c
     }
@@ -414,7 +422,7 @@ const onTransparency = (event) => {
     currentRequest.streamCard.body.textContent += event.text
     chat.scrollTop = chat.scrollHeight
   } else if (event.type === "tool-call") {
-    const c = makeCard("tool-call", `🔧 ${event.tool}`)
+    const c = makeCard("tool-call", `🔧 ${event.tool}`, event)
     c.body.textContent = JSON.stringify(event.args, null, 2)
     appendCard(c.card)
     finishThinkingPhase() // thinking done → "Thought for Xs"
@@ -422,7 +430,8 @@ const onTransparency = (event) => {
   } else if (event.type === "tool-result") {
     const c = makeCard(
       "tool-result",
-      event.ok ? `✅ ${event.tool} · ${event.durationMs}ms` : `❌ ${event.tool} · failed`
+      event.ok ? `✅ ${event.tool} · ${event.durationMs}ms` : `❌ ${event.tool} · failed`,
+      event
     )
     if (!event.ok) c.card.classList.add("error")
     c.body.textContent = event.result
@@ -430,13 +439,14 @@ const onTransparency = (event) => {
     removeLoader() // tool phase done
     startThinking() // model is processing the result
   } else if (event.type === "custom") {
-    const c = makeCard("custom", `${event.mod} · ${event.name}`)
+    const c = makeCard("custom", `${event.mod} · ${event.name}`, event)
     c.body.textContent = JSON.stringify(event.data, null, 2)
     appendCard(c.card)
   } else if (event.type === "finish") {
     const c = makeCard(
       "finish",
-      `finish · ${event.finishReason} · ${event.latencyMs}ms · ${event.usage.inputTokens}/${event.usage.outputTokens} tokens`
+      `finish · ${event.finishReason} · ${event.latencyMs}ms · ${event.usage.inputTokens}/${event.usage.outputTokens} tokens`,
+      event
     )
     c.body.textContent = JSON.stringify(event, null, 2)
     appendCard(c.card)
@@ -445,13 +455,13 @@ const onTransparency = (event) => {
     // (nothing left for onDelta to clean up) — clear any stray loader here too
     removeLoader()
   } else if (event.type === "error") {
-    const c = makeCard("error", `error · ${event.message}`)
+    const c = makeCard("error", `error · ${event.message}`, event)
     c.body.textContent = JSON.stringify(event, null, 2)
     appendCard(c.card)
     currentRequest = null
     removeLoader()
   } else if (event.type === "notice") {
-    const c = makeCard("notice", `🔔 ${event.source} · ${event.name}`)
+    const c = makeCard("notice", `🔔 ${event.source} · ${event.name}`, event)
     c.body.textContent = JSON.stringify(event.data, null, 2)
     appendCard(c.card)
   }
@@ -520,6 +530,25 @@ $("new-session").addEventListener("click", newSession)
 $("events-toggle").addEventListener("click", () => {
   document.body.classList.toggle("hide-events")
   $("events-toggle").classList.toggle("active", !document.body.classList.contains("hide-events"))
+})
+
+// session/system feed filter — cards carry .sess/.sys via makeCard's shared
+// routing predicate; both visible by default (current behavior preserved).
+// Clicking an active scope isolates it; clicking again restores both.
+let scopeMode = "all" // all | sess | sys
+const applyScope = () => {
+  document.body.classList.toggle("hide-sess", scopeMode === "sys")
+  document.body.classList.toggle("hide-sys", scopeMode === "sess")
+  $("scope-session").classList.toggle("active", scopeMode !== "sys")
+  $("scope-system").classList.toggle("active", scopeMode !== "sess")
+}
+$("scope-session").addEventListener("click", () => {
+  scopeMode = scopeMode === "sess" ? "all" : "sess"
+  applyScope()
+})
+$("scope-system").addEventListener("click", () => {
+  scopeMode = scopeMode === "sys" ? "all" : "sys"
+  applyScope()
 })
 
 // ---- mods panel -----------------------------------------------------------
@@ -1224,7 +1253,7 @@ const boot = async () => {
   try {
     for (const e of await window.forge.getTranscript()) {
       if (e && e.type === "notice") {
-        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`)
+        const c = makeCard("notice", `🔔 ${e.source} · ${e.name}`, e)
         c.body.textContent = JSON.stringify(e.data, null, 2)
         chat.appendChild(c.card)
       }
