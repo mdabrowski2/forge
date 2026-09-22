@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, WebContentsView } from "electron"
 import { fileURLToPath } from "url"
 import path from "path"
 import { runCommand } from "./commands"
+import { FORGE_VERSION } from "../src/version"
 import { collectBootNotices } from "./boot-notices"
 import { logEvent } from "../src/transparency/log"
 import { publishNotice, truncateNotice } from "../src/transparency/notice"
@@ -85,7 +86,7 @@ const createWindow = () => {
     minWidth: 720,
     minHeight: 480,
     backgroundColor: "#221B14",
-    title: "forge",
+    title: `forge ${FORGE_VERSION}`,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -186,6 +187,8 @@ app.on("window-all-closed", () => {
 })
 
 // ---- IPC ----------------------------------------------------------------
+
+ipcMain.handle("forge:version", () => FORGE_VERSION)
 
 ipcMain.handle("forge:models", () =>
   harnesses.map((h) => ({

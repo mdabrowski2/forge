@@ -1232,6 +1232,11 @@ const refreshSessions = async () => {
 // ---- boot ----------------------------------------------------------------
 
 const boot = async () => {
+  try {
+    document.querySelector(".logo").textContent = `forge ${await window.forge.version()}`
+  } catch {
+    /* version label is cosmetic; boot continues without it */
+  }
   const providers = await window.forge.getModels()
   renderModels(providers)
   const firstWithModels = providers.find((p) => p.models.length)

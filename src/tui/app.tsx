@@ -8,6 +8,7 @@ import { runChatTurn } from "../agent/loop"
 import { ChatView } from "./chat"
 import { PromptInput } from "./input"
 import { goldenHour } from "./theme"
+import { FORGE_VERSION } from "../version"
 
 export const App = (props: {
   providers: Provider[]
@@ -99,7 +100,7 @@ export const App = (props: {
         paddingBottom={1}
       >
         <text fg={t.gold}>
-          <b>forge</b>
+          <b>forge {FORGE_VERSION}</b>
         </text>
         <text fg={t.muted}>
           {provider()?.name ?? "no provider"} · {model() || "no model"}
