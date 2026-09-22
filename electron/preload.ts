@@ -19,4 +19,20 @@ contextBridge.exposeInMainWorld("forge", {
   openExternal: (url: string) => ipcRenderer.invoke("forge:openExternal", url),
   onTransparency: (cb: (event: unknown) => void) =>
     ipcRenderer.on("forge:transparency", (_e, event) => cb(event)),
+  listSkills: () => ipcRenderer.invoke("forge:skills"),
+  setSkillLoaded: (name: string, loaded: boolean) => ipcRenderer.invoke("forge:setSkillLoaded", name, loaded),
+  listMods: () => ipcRenderer.invoke("forge:mods"),
+  reloadMods: () => ipcRenderer.invoke("forge:reloadMods"),
+  modsForScope: (scope: string) => ipcRenderer.invoke("forge:modsForScope", scope),
+  setModScopedEnabled: (scope: string, dirName: string, enabled: boolean | undefined) =>
+    ipcRenderer.invoke("forge:setModScopedEnabled", scope, dirName, enabled),
+  setModScopedSettings: (scope: string, dirName: string, settingsJson: string) =>
+    ipcRenderer.invoke("forge:setModScopedSettings", scope, dirName, settingsJson),
+  relaunch: () => ipcRenderer.invoke("forge:relaunch"),
+  getQuestPreview: () => ipcRenderer.invoke("forge:questPreview"),
+  getPrInboxPreview: () => ipcRenderer.invoke("forge:prInboxPreview"),
+  openQuestTracker: () => ipcRenderer.invoke("forge:openQuestTracker"),
+  closeQuestTracker: () => ipcRenderer.invoke("forge:closeQuestTracker"),
+  getConfig: () => ipcRenderer.invoke("forge:getConfig"),
+  setConfig: (config: unknown) => ipcRenderer.invoke("forge:setConfig", config),
 })

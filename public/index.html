@@ -11,15 +11,32 @@
     <aside id="sidebar">
       <div class="sidebar-header">
         <span class="logo">forge</span>
-        <button id="new-session" title="New session">+ new</button>
+        <button id="new-session" class="btn-action btn-action-amber" title="New session">+ new</button>
       </div>
       <div id="session-list"></div>
+
+      <div id="pr-preview">
+        <div class="pr-preview-header">
+          <span>PR inbox</span>
+        </div>
+        <div id="pr-preview-list"></div>
+      </div>
+
+      <div id="quest-preview">
+        <div class="quest-preview-header">
+          <span>quests</span>
+          <button id="quest-open-full" class="btn-icon btn-icon-amber" title="Open full quest tracker">↗</button>
+        </div>
+        <div id="quest-preview-list"></div>
+      </div>
     </aside>
 
     <main id="main">
       <header id="topbar">
         <div class="topbar-left">
-          <button id="events-toggle" title="Toggle transparency cards">👁 events</button>
+          <button id="events-toggle" class="btn-toggle" title="Toggle transparency cards">👁 events</button>
+          <button id="skills-toggle" class="btn-toggle" title="Load skills for this session">📖 skills</button>
+          <button id="settings-toggle" class="btn-toggle" title="Forge settings">⚙️ settings</button>
         </div>
         <div class="topbar-right">
           <span id="model-label">model</span>
@@ -31,10 +48,75 @@
 
       <footer id="composer">
         <textarea id="input" placeholder="Ask forge…" rows="1"></textarea>
-        <button id="send">send</button>
+        <button id="send" class="btn-primary">send</button>
       </footer>
     </main>
   </div>
+
+  <div id="quest-modal-header" class="hidden">
+    <span>quest tracker</span>
+    <button id="quest-modal-close" class="btn-icon" title="Close">✕</button>
+  </div>
+
+  <div id="settings-panel" class="hidden">
+    <div class="mods-panel-inner">
+      <div class="mods-panel-header">
+        <span>settings</span>
+        <div class="mods-panel-header-actions">
+          <button id="settings-restart" class="btn-action btn-action-amber" title="Restart forge to apply changes">restart forge</button>
+          <button id="settings-save" class="btn-action btn-action-amber" title="Save settings">save</button>
+          <button id="settings-close" class="btn-icon" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="settings-tabs">
+        <button class="btn-tab settings-tab active" data-tab="general">general</button>
+        <button class="btn-tab settings-tab" data-tab="mods">mods</button>
+      </div>
+      <div id="settings-tab-general" class="settings-tab-body">
+        <div id="settings-body"></div>
+      </div>
+      <div id="settings-tab-mods" class="settings-tab-body hidden">
+        <div class="mods-scope-tabs">
+          <button class="btn-tab mods-scope-tab active" data-scope="global">global</button>
+          <button class="btn-tab mods-scope-tab" data-scope="repo">this repo</button>
+          <button class="btn-tab mods-scope-tab" data-scope="session">this session</button>
+          <button id="mods-reload" class="btn-action" title="Reload mods from disk without restarting">reload mods</button>
+        </div>
+        <div id="mods-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pr-modal" class="hidden">
+    <div class="pr-modal-inner">
+      <div class="mods-panel-header">
+        <span id="pr-modal-title">PR</span>
+        <button id="pr-modal-close" class="btn-icon" title="Close">✕</button>
+      </div>
+      <div id="pr-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="skills-panel" class="hidden">
+    <div class="skills-panel-inner">
+      <div class="mods-panel-header">
+        <span>skills — click to move between columns, picked applies to this session only</span>
+        <button id="skills-close" class="btn-icon" title="Close">✕</button>
+      </div>
+      <div class="skills-columns">
+        <div class="skills-column">
+          <div class="skills-column-header">available</div>
+          <div id="skills-available" class="skills-column-list"></div>
+        </div>
+        <div class="skills-column">
+          <div class="skills-column-header">picked</div>
+          <div id="skills-picked" class="skills-column-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="ui.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

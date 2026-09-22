@@ -79,15 +79,26 @@ const renderInline = (text) => {
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
   s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
   s = s.replace(/~~([^~]+)~~/g, "<del>$1</del>")
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-  s = s.replace(/https?:\/\/[^\s<>"'\u0000]+/g, (m) => {
+  // protect each generated <a> immediately — otherwise a later regex (e.g.
+  // PATH_RE matching slashes inside an already-built href="...") can inject
+  // a second nested anchor into the first one's attribute value
+  const links = []
+  const protectLink = (html) => {
+    links.push(html)
+    return `\u0001${links.length - 1}\u0001`
+  }
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) =>
+    protectLink(`<a href="${href}" target="_blank" rel="noopener">${label}</a>`)
+  )
+  s = s.replace(/https?:\/\/[^\s<>"'\u0000\u0001]+/g, (m) => {
     const [clean, tail] = trimTail(m)
-    return `<a href="${clean}" target="_blank" rel="noopener">${clean}</a>${tail}`
+    return protectLink(`<a href="${clean}" target="_blank" rel="noopener">${clean}</a>`) + tail
   })
   s = s.replace(PATH_RE, (m) => {
     const [clean, tail] = trimTail(m)
-    return `<a href="#" class="path" data-path="${clean}">${clean}</a>${tail}`
+    return protectLink(`<a href="#" class="path" data-path="${clean}">${clean}</a>`) + tail
   })
+  s = s.replace(/\u0001(\d+)\u0001/g, (_, n) => links[+n])
   s = s.replace(/\u0000(\d+)\u0000/g, (_, n) => `<code>${escapeHtml(codes[+n])}</code>`)
   return s
 }
@@ -181,8 +192,14 @@ const replayEvents = (events) => {
     byTurn.get(t).push(e)
   }
   const assistantEls = chat.querySelectorAll(".msg.assistant")
-  for (const [turn, evts] of byTurn) {
-    const anchor = assistantEls[turn]
+  // event.turn is the raw session.messages index at append time (mixes
+  // user/assistant/tool entries, so it jumps 0, 2, 5, 7, 9…), not a
+  // sequential turn counter — map each distinct turn, in the chronological
+  // order it first appears, to its positional assistant bubble instead of
+  // indexing assistantEls by the raw value directly
+  let position = 0
+  for (const [, evts] of byTurn) {
+    const anchor = assistantEls[position++]
     if (!anchor) continue
     let req = null
     for (const e of evts) {
@@ -201,8 +218,6 @@ const replayEvents = (events) => {
           const c = makeCard("reasoning", "reasoning")
           req.card.after(c.card)
           req.reasonCard = c
-          c.body.classList.remove("hidden")
-          c.arrow.textContent = "▾"
         }
         req.reasonChars += e.delta.length
         req.reasonCard.summary.textContent = `reasoning · ${req.reasonChars} chars`
@@ -375,9 +390,6 @@ const onTransparency = (event) => {
       const c = makeCard("reasoning", "reasoning")
       currentRequest.card.after(c.card)
       currentRequest.reasonCard = c
-      // the trace is the whole point — show it expanded by default
-      c.body.classList.remove("hidden")
-      c.arrow.textContent = "▾"
     }
     currentRequest.reasonChars += event.delta.length
     currentRequest.reasonCard.summary.textContent = `reasoning · ${currentRequest.reasonChars} chars`
@@ -424,11 +436,15 @@ const onTransparency = (event) => {
     c.body.textContent = JSON.stringify(event, null, 2)
     appendCard(c.card)
     currentRequest = null
+    // a turn can end right after a tool result with no further text delta
+    // (nothing left for onDelta to clean up) — clear any stray loader here too
+    removeLoader()
   } else if (event.type === "error") {
     const c = makeCard("error", `error · ${event.message}`)
     c.body.textContent = JSON.stringify(event, null, 2)
     appendCard(c.card)
     currentRequest = null
+    removeLoader()
   }
 }
 
@@ -497,6 +513,626 @@ $("events-toggle").addEventListener("click", () => {
   $("events-toggle").classList.toggle("active", !document.body.classList.contains("hide-events"))
 })
 
+// ---- mods panel -----------------------------------------------------------
+
+const modsList = $("mods-list")
+let modsScope = "global" // global | repo | session — most specific wins at resolve time
+
+// enabled is undefined | true | false at a given scope: undefined means "not
+// set here, inherits from a less specific scope" — the 3-state <select>
+// makes that a first-class, distinct choice from explicitly true/false
+const ENABLED_OPTIONS = [
+  { value: "", label: "inherit" },
+  { value: "true", label: "enabled" },
+  { value: "false", label: "disabled" },
+]
+
+const renderMods = (mods) => {
+  modsList.innerHTML = ""
+  if (!mods.length) {
+    modsList.textContent = "No mods installed yet — drop one in ~/.forge/mods/<name>/index.js"
+    return
+  }
+  for (const mod of mods) {
+    const row = document.createElement("div")
+    row.className = "mod-row"
+
+    const top = document.createElement("div")
+    top.className = "mod-row-top"
+    const name = document.createElement("span")
+    name.className = "mod-name"
+    name.textContent = mod.dirName
+    const status = document.createElement("span")
+    status.className = `mod-status ${mod.status}`
+    status.textContent = mod.status
+    top.appendChild(name)
+    top.appendChild(status)
+    row.appendChild(top)
+
+    if (mod.error) {
+      const err = document.createElement("div")
+      err.className = "mod-error"
+      err.textContent = mod.error
+      row.appendChild(err)
+    }
+
+    const form = document.createElement("div")
+    form.className = "mod-settings-form"
+
+    const addSettingRow = (key, value, type, isNew) => {
+      const settingRow = document.createElement("div")
+      settingRow.className = "mod-setting-row"
+      settingRow.dataset.type = type
+
+      let keyEl
+      if (isNew) {
+        keyEl = document.createElement("input")
+        keyEl.type = "text"
+        keyEl.className = "mod-setting-key-input"
+        keyEl.placeholder = "key"
+      } else {
+        keyEl = document.createElement("span")
+        keyEl.className = "mod-setting-key"
+        keyEl.textContent = key
+        settingRow.dataset.key = key
+      }
+      settingRow.appendChild(keyEl)
+
+      let valueEl
+      if (type === "boolean") {
+        valueEl = document.createElement("input")
+        valueEl.type = "checkbox"
+        valueEl.checked = !!value
+      } else {
+        valueEl = document.createElement("input")
+        valueEl.type = type === "number" ? "number" : "text"
+        valueEl.value = value ?? ""
+      }
+      valueEl.className = "mod-setting-value"
+      settingRow.appendChild(valueEl)
+
+      const remove = UI.action("×", {
+        color: "rose",
+        size: "xs",
+        title: "Remove this setting",
+        onClick: () => settingRow.remove(),
+      })
+      settingRow.appendChild(remove)
+
+      form.appendChild(settingRow)
+    }
+
+    for (const [key, value] of Object.entries(mod.settings ?? {})) {
+      addSettingRow(key, value, typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string", false)
+    }
+
+    row.appendChild(form)
+
+    const addSettingBtn = UI.action("+ add setting", {
+      color: "sky",
+      size: "sm",
+      onClick: () => addSettingRow("", "", "string", true),
+    })
+    row.appendChild(addSettingBtn)
+
+    const actions = document.createElement("div")
+    actions.className = "mod-row-actions"
+
+    const select = document.createElement("select")
+    select.className = "mod-enabled-select"
+    for (const opt of ENABLED_OPTIONS) {
+      const o = document.createElement("option")
+      o.value = opt.value
+      o.textContent = opt.label
+      select.appendChild(o)
+    }
+    select.value = mod.enabled === undefined ? "" : String(mod.enabled)
+    actions.appendChild(select)
+
+    const saveBtn = UI.action("save", {
+      color: "amber",
+      onClick: async () => {
+        const enabled = select.value === "" ? undefined : select.value === "true"
+        await window.forge.setModScopedEnabled(modsScope, mod.dirName, enabled)
+
+        const settingsObj = {}
+        for (const settingRow of form.querySelectorAll(".mod-setting-row")) {
+          const keyInput = settingRow.querySelector(".mod-setting-key-input")
+          const key = keyInput ? keyInput.value.trim() : settingRow.dataset.key
+          if (!key) continue
+          const valueEl = settingRow.querySelector(".mod-setting-value")
+          settingsObj[key] =
+            settingRow.dataset.type === "boolean"
+              ? valueEl.checked
+              : settingRow.dataset.type === "number"
+                ? Number(valueEl.value)
+                : valueEl.value
+        }
+
+        const res = await window.forge.setModScopedSettings(modsScope, mod.dirName, JSON.stringify(settingsObj))
+        saveBtn.textContent = res.ok ? "saved" : "save failed"
+        setTimeout(() => {
+          saveBtn.textContent = "save"
+        }, 1500)
+      },
+    })
+    actions.appendChild(saveBtn)
+
+    row.appendChild(actions)
+    modsList.appendChild(row)
+  }
+}
+
+const refreshMods = async () => {
+  renderMods(await window.forge.modsForScope(modsScope))
+}
+
+for (const tab of document.querySelectorAll(".mods-scope-tab")) {
+  tab.addEventListener("click", async () => {
+    modsScope = tab.dataset.scope
+    for (const t of document.querySelectorAll(".mods-scope-tab")) t.classList.toggle("active", t === tab)
+    await refreshMods()
+  })
+}
+
+$("mods-reload").addEventListener("click", async (e) => {
+  const btn = e.currentTarget
+  btn.textContent = "reloading…"
+  try {
+    await window.forge.reloadMods()
+    await refreshMods()
+    btn.textContent = "reloaded"
+  } catch {
+    btn.textContent = "reload failed"
+  }
+  setTimeout(() => {
+    btn.textContent = "reload mods"
+  }, 1500)
+})
+}
+
+// ---- skills panel -----------------------------------------------------------
+
+const skillsAvailable = $("skills-available")
+const skillsPicked = $("skills-picked")
+
+const makeSkillItem = (skill) => {
+  const row = document.createElement("div")
+  row.className = "skill-item"
+
+  const top = document.createElement("div")
+  top.className = "mod-row-top"
+  const name = document.createElement("span")
+  name.className = "mod-name"
+  name.textContent = skill.name
+  const modBadge = document.createElement("span")
+  modBadge.className = "skill-mod-badge"
+  modBadge.textContent = skill.modName
+  top.appendChild(name)
+  top.appendChild(modBadge)
+  row.appendChild(top)
+
+  const desc = document.createElement("div")
+  desc.className = "skill-description"
+  desc.textContent = skill.description
+  row.appendChild(desc)
+
+  // clicking either side toggles it and moves it to the other column
+  row.addEventListener("click", async () => {
+    await window.forge.setSkillLoaded(skill.name, !skill.loaded)
+    await refreshSkills()
+  })
+
+  return row
+}
+
+const renderSkills = (skills) => {
+  skillsAvailable.innerHTML = ""
+  skillsPicked.innerHTML = ""
+
+  const available = skills.filter((s) => !s.loaded)
+  const picked = skills.filter((s) => s.loaded)
+
+  if (!available.length) skillsAvailable.textContent = skills.length ? "none" : "No skills registered yet"
+  else for (const s of available) skillsAvailable.appendChild(makeSkillItem(s))
+
+  if (!picked.length) skillsPicked.textContent = "none picked yet"
+  else for (const s of picked) skillsPicked.appendChild(makeSkillItem(s))
+}
+
+const refreshSkills = async () => {
+  renderSkills(await window.forge.listSkills())
+}
+
+$("skills-toggle").addEventListener("click", async () => {
+  $("skills-panel").classList.remove("hidden")
+  $("skills-toggle").classList.add("active")
+  await refreshSkills()
+})
+
+$("skills-close").addEventListener("click", () => {
+  $("skills-panel").classList.add("hidden")
+  $("skills-toggle").classList.remove("active")
+})
+
+// ---- settings panel ---------------------------------------------------------
+
+let draftConfig = null
+
+const PROVIDER_KINDS = ["ollama", "anthropic"]
+
+const renderProviderCard = (provider, index) => {
+  const card = document.createElement("div")
+  card.className = "provider-card"
+
+  const top = document.createElement("div")
+  top.className = "provider-card-top"
+  const label = document.createElement("span")
+  label.className = "mod-name"
+  label.textContent = provider.name || provider.id || `provider ${index + 1}`
+  const remove = UI.action("remove", {
+    color: "rose",
+    size: "sm",
+    onClick: () => {
+      draftConfig.providers.splice(index, 1)
+      renderSettings()
+    },
+  })
+  top.appendChild(label)
+  top.appendChild(remove)
+  card.appendChild(top)
+
+  const field = (labelText, value, onInput, type = "text") => {
+    const row = document.createElement("div")
+    row.className = "settings-field"
+    const l = document.createElement("label")
+    l.textContent = labelText
+    const i = document.createElement("input")
+    i.type = type
+    i.value = value ?? ""
+    i.addEventListener("input", () => onInput(i.value))
+    row.appendChild(l)
+    row.appendChild(i)
+    card.appendChild(row)
+  }
+
+  field("id", provider.id, (v) => (provider.id = v))
+  field("name", provider.name, (v) => (provider.name = v))
+
+  const kindRow = document.createElement("div")
+  kindRow.className = "settings-field"
+  const kindLabel = document.createElement("label")
+  kindLabel.textContent = "kind"
+  const kindSelect = document.createElement("select")
+  for (const k of PROVIDER_KINDS) {
+    const opt = document.createElement("option")
+    opt.value = k
+    opt.textContent = k
+    if (k === provider.kind) opt.selected = true
+    kindSelect.appendChild(opt)
+  }
+  kindSelect.addEventListener("change", () => (provider.kind = kindSelect.value))
+  kindRow.appendChild(kindLabel)
+  kindRow.appendChild(kindSelect)
+  card.appendChild(kindRow)
+
+  field("base URL", provider.baseURL, (v) => (provider.baseURL = v))
+  field("API key", provider.apiKey, (v) => (provider.apiKey = v), "password")
+  field("default model", provider.defaultModel, (v) => (provider.defaultModel = v))
+
+  return card
+}
+
+const renderSettings = () => {
+  const body = $("settings-body")
+  body.innerHTML = ""
+
+  const providersLabel = document.createElement("div")
+  providersLabel.className = "settings-section-label"
+  providersLabel.textContent = "providers — changes need a restart to take effect"
+  body.appendChild(providersLabel)
+
+  draftConfig.providers.forEach((provider, index) => {
+    body.appendChild(renderProviderCard(provider, index))
+  })
+
+  const addBtn = UI.action("+ add provider", {
+    color: "sky",
+    onClick: () => {
+      draftConfig.providers.push({ id: "", name: "", kind: "anthropic", baseURL: "", apiKey: "", defaultModel: "" })
+      renderSettings()
+    },
+  })
+  body.appendChild(addBtn)
+
+  const appearanceLabel = document.createElement("div")
+  appearanceLabel.className = "settings-section-label"
+  appearanceLabel.textContent = "appearance"
+  body.appendChild(appearanceLabel)
+
+  const themeRow = document.createElement("div")
+  themeRow.className = "settings-field"
+  const themeLabelEl = document.createElement("label")
+  themeLabelEl.textContent = "theme"
+  const themeSelect = document.createElement("select")
+  for (const t of ["dark", "light"]) {
+    const opt = document.createElement("option")
+    opt.value = t
+    opt.textContent = t
+    if (t === draftConfig.theme) opt.selected = true
+    themeSelect.appendChild(opt)
+  }
+  themeSelect.addEventListener("change", () => (draftConfig.theme = themeSelect.value))
+  themeRow.appendChild(themeLabelEl)
+  themeRow.appendChild(themeSelect)
+  body.appendChild(themeRow)
+
+  const agentLabel = document.createElement("div")
+  agentLabel.className = "settings-section-label"
+  agentLabel.textContent = "agent"
+  body.appendChild(agentLabel)
+
+  const thinkingRow = document.createElement("div")
+  thinkingRow.className = "settings-field"
+  const thinkingLabelEl = document.createElement("label")
+  thinkingLabelEl.textContent = "enable thinking"
+  const thinkingCheckbox = document.createElement("input")
+  thinkingCheckbox.type = "checkbox"
+  thinkingCheckbox.checked = !!draftConfig.thinking
+  thinkingCheckbox.addEventListener("change", () => (draftConfig.thinking = thinkingCheckbox.checked))
+  thinkingRow.appendChild(thinkingLabelEl)
+  thinkingRow.appendChild(thinkingCheckbox)
+  body.appendChild(thinkingRow)
+
+  const cwdRow = document.createElement("div")
+  cwdRow.className = "settings-field"
+  const cwdLabelEl = document.createElement("label")
+  cwdLabelEl.textContent = "default working directory"
+  const cwdInput = document.createElement("input")
+  cwdInput.type = "text"
+  cwdInput.value = draftConfig.cwd ?? ""
+  cwdInput.addEventListener("input", () => (draftConfig.cwd = cwdInput.value))
+  cwdRow.appendChild(cwdLabelEl)
+  cwdRow.appendChild(cwdInput)
+  body.appendChild(cwdRow)
+}
+
+$("settings-toggle").addEventListener("click", async () => {
+  draftConfig = await window.forge.getConfig()
+  renderSettings()
+  await refreshMods()
+  $("settings-panel").classList.remove("hidden")
+  $("settings-toggle").classList.add("active")
+})
+
+$("settings-close").addEventListener("click", () => {
+  $("settings-panel").classList.add("hidden")
+  $("settings-toggle").classList.remove("active")
+})
+
+$("settings-save").addEventListener("click", async () => {
+  await window.forge.setConfig(draftConfig)
+  $("settings-panel").classList.add("hidden")
+  $("settings-toggle").classList.remove("active")
+})
+
+$("settings-restart").addEventListener("click", () => {
+  window.forge.relaunch()
+})
+
+for (const tab of document.querySelectorAll(".settings-tab")) {
+  tab.addEventListener("click", () => {
+    for (const t of document.querySelectorAll(".settings-tab")) t.classList.toggle("active", t === tab)
+    $("settings-tab-general").classList.toggle("hidden", tab.dataset.tab !== "general")
+    $("settings-tab-mods").classList.toggle("hidden", tab.dataset.tab !== "mods")
+  })
+}
+
+// ---- PR inbox preview widget ------------------------------------------------
+
+// builds a fully-contextualized prompt so the agent never has to re-fetch
+// what's already known — dropped into the composer, not auto-sent
+const buildPrActPrompt = (pr, comment) => {
+  const header = `PR: ${pr.project}/${pr.repository} #${pr.id} — "${pr.title}"\nURL: ${pr.url}`
+
+  if (comment) {
+    const loc = comment.path ? `\nFile: ${comment.path}${comment.line ? `:${comment.line}` : ""}` : ""
+    return (
+      `Address this Bitbucket PR review comment.\n\n${header}${loc}\n` +
+      `Comment (by ${comment.author}): "${comment.text}"\n\n` +
+      `Fetch the PR diff first if you need more context, make the fix, then reply with ` +
+      `/pr-comment ${pr.repository} ${pr.id} <summary of what you changed>.`
+    )
+  }
+
+  const parts = []
+  if (pr.comments.length) {
+    parts.push(
+      "Unresolved comments:\n" +
+        pr.comments.map((c, i) => `${i + 1}. (${c.author}) "${c.text}"`).join("\n"),
+    )
+  }
+  if (pr.actionableReasons.length) {
+    parts.push("Other open issues:\n" + pr.actionableReasons.map((r) => `- ${r}`).join("\n"))
+  }
+
+  return (
+    `Address the open issues on this Bitbucket PR.\n\n${header}\n\n${parts.join("\n\n")}\n\n` +
+    `Fetch the PR diff first if you need more context, make the fixes, then reply with ` +
+    `/pr-comment ${pr.repository} ${pr.id} <summary of what you changed>.`
+  )
+}
+
+const fillComposerWithPrompt = (text) => {
+  const input = $("input")
+  input.value = text
+  input.focus()
+}
+
+// ---- PR detail modal (opened by clicking a sidebar row) -------------------
+
+const openPrModal = (pr) => {
+  $("pr-modal-title").textContent = `${pr.project}/${pr.repository} #${pr.id}`
+  const body = $("pr-modal-body")
+  body.innerHTML = ""
+
+  if (pr.url) {
+    const link = document.createElement("span")
+    link.className = "pr-modal-link clickable"
+    link.textContent = `${pr.title} ↗`
+    link.addEventListener("click", () => window.forge.openExternal(pr.url))
+    body.appendChild(link)
+  } else {
+    const title = document.createElement("div")
+    title.textContent = pr.title
+    body.appendChild(title)
+  }
+
+  if (pr.comments.length || pr.actionableReasons.length) {
+    const actAll = UI.action("Act on whole PR", {
+      color: "sky",
+      size: "xs",
+      onClick: () => {
+        fillComposerWithPrompt(buildPrActPrompt(pr))
+        closePrModal()
+      },
+    })
+    body.appendChild(document.createElement("br"))
+    body.appendChild(actAll)
+  }
+
+  if (pr.actionableReasons.length) {
+    const label = document.createElement("div")
+    label.className = "pr-modal-section-label"
+    label.textContent = "open issues"
+    body.appendChild(label)
+    const reasons = document.createElement("div")
+    reasons.className = "pr-modal-reasons"
+    reasons.textContent = pr.actionableReasons.join(" · ")
+    body.appendChild(reasons)
+  }
+
+  if (pr.comments.length) {
+    const label = document.createElement("div")
+    label.className = "pr-modal-section-label"
+    label.textContent = "unresolved comments"
+    body.appendChild(label)
+    for (const comment of pr.comments) {
+      const cRow = document.createElement("div")
+      cRow.className = "pr-modal-comment"
+      const text = document.createElement("span")
+      text.className = "pr-modal-comment-text"
+      text.textContent = `${comment.author}: ${comment.text}`
+      cRow.appendChild(text)
+      const act = UI.action("Act", {
+        color: "sky",
+        size: "xs",
+        title: "Fill the composer with this exact comment and its context",
+        onClick: () => {
+          fillComposerWithPrompt(buildPrActPrompt(pr, comment))
+          closePrModal()
+        },
+      })
+      cRow.appendChild(act)
+      body.appendChild(cRow)
+    }
+  }
+
+  $("pr-modal").classList.remove("hidden")
+}
+
+const closePrModal = () => $("pr-modal").classList.add("hidden")
+
+$("pr-modal-close").addEventListener("click", closePrModal)
+
+const refreshPrPreview = async () => {
+  const list = $("pr-preview-list")
+  const res = await window.forge.getPrInboxPreview()
+  list.innerHTML = ""
+  if (!res.ok) {
+    list.textContent = "bb not reachable"
+    return
+  }
+  if (!res.prs.length) {
+    list.textContent = "nothing needs attention"
+    return
+  }
+  for (const pr of res.prs) {
+    const row = document.createElement("div")
+    row.className = "pr-preview-item clickable"
+
+    const role = document.createElement("span")
+    role.className = "pr-preview-role"
+    role.textContent = pr.role
+    const repo = document.createElement("span")
+    repo.className = "pr-preview-repo"
+    repo.textContent = ` ${pr.project}/${pr.repository} #${pr.id} `
+    const title = document.createElement("span")
+    title.className = "pr-preview-title"
+    title.textContent = pr.title
+
+    row.appendChild(role)
+    row.appendChild(repo)
+    row.appendChild(title)
+    row.addEventListener("click", () => openPrModal(pr))
+
+    list.appendChild(row)
+  }
+}
+
+refreshPrPreview()
+setInterval(refreshPrPreview, 30000)
+
+// ---- quest preview widget --------------------------------------------------
+
+const refreshQuestPreview = async () => {
+  const list = $("quest-preview-list")
+  const res = await window.forge.getQuestPreview()
+  list.innerHTML = ""
+  if (!res.ok) {
+    list.textContent = "quest-tracker not running"
+    return
+  }
+  if (!res.quests.length) {
+    list.textContent = "no active quests"
+    return
+  }
+  for (const q of res.quests) {
+    const row = document.createElement("div")
+    row.className = "quest-preview-item"
+    const dot = document.createElement("span")
+    dot.className = `quest-dot ${q.status}`
+    dot.title = q.status
+    const title = document.createElement("span")
+    title.className = "quest-preview-title"
+    title.textContent = q.title
+    row.appendChild(dot)
+    row.appendChild(title)
+    list.appendChild(row)
+  }
+}
+
+const closeQuestModal = () => {
+  $("quest-modal-header").classList.add("hidden")
+  window.forge.closeQuestTracker()
+}
+
+$("quest-open-full").addEventListener("click", () => {
+  $("quest-modal-header").classList.remove("hidden")
+  window.forge.openQuestTracker()
+})
+
+$("quest-modal-close").addEventListener("click", closeQuestModal)
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("quest-modal-header").classList.contains("hidden")) {
+    closeQuestModal()
+  }
+})
+
+refreshQuestPreview()
+setInterval(refreshQuestPreview, 30000)
+
 // clickable file paths + links inside messages
 chat.addEventListener("click", (e) => {
   const a = e.target.closest("a")
@@ -561,9 +1197,14 @@ const refreshSessions = async () => {
 const boot = async () => {
   const providers = await window.forge.getModels()
   renderModels(providers)
-  if (providers.length && providers[0].models.length) {
-    modelSelect.value = providers[0].defaultModel || providers[0].models[0]
+  const firstWithModels = providers.find((p) => p.models.length)
+  if (firstWithModels) {
+    modelSelect.value = firstWithModels.defaultModel || firstWithModels.models[0]
   }
+  // sync the main process with whatever ended up selected (explicit default or the
+  // <select>'s own fallback to its first <option>) so currentProvider never drifts
+  // from what the dropdown shows
+  if (modelSelect.value) window.forge.setModel(modelSelect.value)
   const session = await window.forge.getSession()
   currentSessionId = session.id
   currentRequest = null
