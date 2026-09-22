@@ -145,7 +145,9 @@ Proof: boot is not drivable headless → rule it (ledger): extract `collectBootN
 
 ---
 
-### Task 5: Hook failures, CLI argv, integration outcomes (audit #3+4+5) — 5a SHIPPED (hooks + CLI)
+### Task 5: Hook failures, CLI argv, integration outcomes (audit #3+4+5) — 5a SHIPPED, 5b SHIPPED
+
+5b: `loadQuestPreview`/`loadPrPreview` in `electron/previews.ts` (notices switch on `result.ok` — neither fetch fn throws; returns untouched). `commentsOk: boolean` per PR exposes the swallowed comment failures. Notices carry counts/ids/errors only (no texts/titles); bb stderr verbatim as decided tradeoff. Proofs: stub HTTP server (URL param seam) + fake `bb` (`scripts/fixtures/bb`, failure variant); renderer reads `comments` array — additive field harmless.
 
 Hooks: `emitHook` catch emits keys-only `notice('hooks','hook-failed',{event,mod,payloadKeys})` via in-scope `emitSink` (never `publishNotice` — import cycle); skipped for `transparencyEvent` itself (recursion guard: sink fans out through the same hook set). CLI: static turn-start notice `{model, resumed, allowedTools}` (argv dump replaced — argv is static except userText/model/resume); bounded (2000-char) stderr drain into `close`/`error` failure messages; rate-limit left as the existing `custom` event (no duplication). Proofs: hooks incl. termination case; CLI via in-repo fake binary (`scripts/fixtures/claude`, self-PATH-wired). Note: child-`error` path now rejects enriched `Error` instead of raw err. TUI never uses this harness (Electron-only notices) — documented.
 

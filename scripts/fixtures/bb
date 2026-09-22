@@ -1,0 +1,15 @@
+#!/bin/sh
+# fake `bb` CLI for headless proofs. FAKE_BB_MODE=fail -> exit 1 with stderr.
+if [ "$FAKE_BB_MODE" = "fail" ]; then
+  echo "bb: auth expired" >&2
+  exit 1
+fi
+case "$1" in
+  get_inbox_pull_requests)
+    echo '{"pullRequests":[{"id":7,"title":"Fix login","project":"P","repository":"R","daysOpen":3,"url":"https://example/x","actionableReasons":[]}]}' ;;
+  triage_my_pull_requests)
+    echo '{"pullRequests":[]}' ;;
+  list_pr_comments)
+    echo '{"comments":[{"id":1,"author":"sam","state":"OPEN","text":"needs work","anchor":{"path":"a.ts","line":4}}]}' ;;
+  *) echo '{}' ;;
+esac

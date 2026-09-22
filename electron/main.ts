@@ -11,8 +11,7 @@ import type { ForgeConfig, ModConfig } from "../src/config"
 import { findRepoRoot, loadRepoConfig, saveRepoConfig } from "../src/repo-config"
 import { listMods, loadMods, modsDir } from "../src/mods/loader"
 import type { ModLoadResult } from "../src/mods/loader"
-import { fetchQuestPreview } from "../src/integrations/quest-tracker"
-import { fetchPrInboxPreview } from "../src/integrations/bitbucket"
+import { loadQuestPreview, loadPrPreview } from "./previews"
 import { createForgeHarness } from "../src/harness/forge-harness"
 import { resolveProviders } from "../src/providers/registry"
 import { createClaudeCodeCliHarness } from "../src/harness/claude-code-cli-harness"
@@ -388,9 +387,9 @@ ipcMain.handle("forge:setConfig", (_e, next: ForgeConfig) => {
   return { ok: true }
 })
 
-ipcMain.handle("forge:questPreview", () => fetchQuestPreview())
+ipcMain.handle("forge:questPreview", () => loadQuestPreview({ session, push: pushToUI }))
 
-ipcMain.handle("forge:prInboxPreview", () => fetchPrInboxPreview())
+ipcMain.handle("forge:prInboxPreview", () => loadPrPreview({ session, push: pushToUI }))
 
 ipcMain.handle("forge:openQuestTracker", () => openQuestTrackerView())
 
