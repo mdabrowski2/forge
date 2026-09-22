@@ -127,7 +127,9 @@ Each handler emits `notice(source, key, {before, after})` where both sides pass 
 
 ---
 
-### Task 4: Boot replay for terminal-less users (audit #6+7)
+### Task 4: Boot replay for terminal-less users (audit #6+7) — SHIPPED
+
+`collectBootNotices({modsDir, loaded, failed, skipped})` in `electron/boot-notices.ts` (narrowed signature — no config, so no secret surface; session-file attach rejected: global noise would pollute sessions). `boot()` pushes each into `transcript` (ring-capped) + `logEvent`; renderer fetches `getTranscript` at boot. Failed mods list fully (each actionable). Proof `scripts/observability-boot-test.ts` asserts field structure; Electron smoke boots clean with seeded corrupt state.
 
 **Files:** `electron/main.ts` (`boot()`), `src/main.tsx` (TUI prints already — no change), docs
 

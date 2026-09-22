@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain, shell, WebContentsView } from "electron"
 import { fileURLToPath } from "url"
 import path from "path"
 import { runCommand } from "./commands"
+import { collectBootNotices } from "./boot-notices"
+import { logEvent } from "../src/transparency/log"
 import { publishNotice, truncateNotice } from "../src/transparency/notice"
 import { traceMutation } from "./mutations"
 import { defaultConfig, loadConfig, saveConfig } from "../src/config"
@@ -137,6 +139,19 @@ const boot = async () => {
   harnesses = []
   const { providers, skipped } = await resolveProviders(config.providers)
   for (const s of skipped) console.error(`[providers] skipping "${s.id}": ${s.reason}`)
+  // notice twins for terminal-less users: same content as the console lines
+  // above, delivered to transcript + forge.log (re-emitted every launch by
+  // design; renderer fetches getTranscript at boot and appends them feed-end)
+  for (const n of collectBootNotices({
+    modsDir: modLoadResult.dir,
+    loaded: modLoadResult.loaded,
+    failed: modLoadResult.failed,
+    skipped,
+  })) {
+    logEvent(n)
+    transcript.push(n)
+    if (transcript.length > 2000) transcript.shift()
+  }
   for (const p of providers) harnesses.push(createForgeHarness(p, () => config))
   harnesses.push(createClaudeCodeCliHarness())
 
