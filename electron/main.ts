@@ -3,6 +3,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { runCommand } from "./commands"
 import { publishNotice, truncateNotice } from "../src/transparency/notice"
+import { traceMutation } from "./mutations"
 import { defaultConfig, loadConfig, saveConfig } from "../src/config"
 import type { ForgeConfig, ModConfig } from "../src/config"
 import { findRepoRoot, loadRepoConfig, saveRepoConfig } from "../src/repo-config"
@@ -45,6 +46,14 @@ let abortController: AbortController | null = null
 let config: ForgeConfig = defaultConfig()
 let modLoadResult: ModLoadResult = { loaded: [], failed: [], dir: modsDir }
 const transcript: TransparencyEvent[] = []
+
+// shared live sink for mutation/notice events (chat turns have their own;
+// this keeps one ring-cap + send path for everything else)
+const pushToUI = (e: TransparencyEvent) => {
+  transcript.push(e)
+  if (transcript.length > 2000) transcript.shift()
+  win?.webContents.send("forge:transparency", e)
+}
 
 // restores whichever model/harness a session last used, so switching
 // sessions (or relaunching into one) doesn't silently fall back to
@@ -165,9 +174,11 @@ ipcMain.handle("forge:models", () =>
 )
 
 ipcMain.handle("forge:setModel", (_e, modelId: string) => {
+  const before = currentModel
   const owner = harnesses.find((h) => h.models.includes(modelId))
   if (owner) currentHarness = owner
   currentModel = modelId
+  traceMutation("model", "currentModel", before, currentModel, { session, push: pushToUI })
   return true
 })
 
@@ -275,9 +286,11 @@ ipcMain.handle("forge:skills", () => {
 
 ipcMain.handle("forge:setSkillLoaded", (_e, name: string, loaded: boolean) => {
   const current = new Set(loadSessionMeta(session.id).loadedSkills ?? [])
+  const before = current.has(name)
   if (loaded) current.add(name)
   else current.delete(name)
   saveSessionMeta(session.id, { loadedSkills: [...current] })
+  traceMutation("skills", name, before, loaded, { session, push: pushToUI })
   return true
 })
 
@@ -326,7 +339,9 @@ ipcMain.handle("forge:modsForScope", (_e, scope: ModScope) => {
 })
 
 ipcMain.handle("forge:setModScopedEnabled", (_e, scope: ModScope, dirName: string, enabled: boolean | undefined) => {
+  const before = getScopedMods(scope)[dirName]?.enabled
   saveScopedMod(scope, dirName, { enabled })
+  traceMutation("mods", `${dirName}(${scope}).enabled`, before, enabled, { session, push: pushToUI })
   return true
 })
 
@@ -337,7 +352,9 @@ ipcMain.handle("forge:setModScopedSettings", (_e, scope: ModScope, dirName: stri
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "invalid JSON" }
   }
+  const before = getScopedMods(scope)[dirName]?.settings ?? {}
   saveScopedMod(scope, dirName, { settings })
+  traceMutation("mods", `${dirName}(${scope}).settings`, before, settings, { session, push: pushToUI })
   return { ok: true }
 })
 
@@ -349,8 +366,10 @@ ipcMain.handle("forge:relaunch", () => {
 ipcMain.handle("forge:getConfig", () => config)
 
 ipcMain.handle("forge:setConfig", (_e, next: ForgeConfig) => {
+  const before = config
   config = next
   saveConfig(config)
+  traceMutation("config", "providers", before, config, { session, push: pushToUI })
   return { ok: true }
 })
 

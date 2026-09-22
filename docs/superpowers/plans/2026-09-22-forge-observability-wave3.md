@@ -109,7 +109,9 @@ Extract the `/cd` + mod-dispatch body of `forge:command` into a testable `runCom
 
 ---
 
-### Task 3: Mutations logged with redaction (audit #2)
+### Task 3: Mutations logged with redaction (audit #2) — SHIPPED
+
+`traceMutation(source, name, before, after, sinks)` in `electron/mutations.ts` (thin typed wrapper over `publishNotice` enforcing `{before, after}`); shared `pushToUI` ring-cap+send helper in `electron/main.ts`. Wired into `setModel` (before=`currentModel`), `setSkillLoaded` (before=membership), `setModScopedEnabled/Settings` (before via `getScopedMods`), `setConfig` (before=prior object; replaced-not-mutated so the snapshot is stable). `/cd` stays owned by Task 2's command notice (no double-emit). URL-embedded secrets under innocent keys explicitly out of scope (key-based redaction sees keys, not payload semantics). Proof `scripts/observability-mutations-test.ts`: before-side secret redaction, scoped readback via real loader fns, toggle shape.
 
 **Files:** `electron/main.ts` (handlers: `setConfig`, `setModScopedEnabled/Settings`, `setSkillLoaded`, `setModel`, `/cd` success path via Task 2 helper)
 
