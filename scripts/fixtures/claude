@@ -1,0 +1,9 @@
+#!/bin/sh
+# fake `claude -p` for headless proofs. FAKE_MODE=ok|nonzero
+if [ "$FAKE_MODE" = "nonzero" ]; then
+  echo '{"type":"system","subtype":"init","session_id":"fake-sess-1"}'
+  echo "disk on fire" >&2
+  exit 3
+fi
+echo '{"type":"system","subtype":"init","session_id":"fake-sess-1"}'
+echo '{"type":"result","subtype":"success","session_id":"fake-sess-1","result":"fine","usage":{"input_tokens":10,"output_tokens":5},"stop_reason":"end_turn","duration_ms":7}'

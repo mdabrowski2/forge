@@ -71,10 +71,29 @@ function runClaudeCodeProcess(opts: TurnOptions, resumeId: string | undefined): 
   ]
   if (resumeId) args.push("--resume", resumeId)
 
+  // static invocation context only: argv is fixed except userText (already in
+  // the session), model (in request) and resumeId — no argv dump, no leak
+  // surface. Credential stays in the subprocess (see header comment).
+  emit({
+    type: "notice",
+    callId: "",
+    source: "cli",
+    name: "turn-start",
+    data: { model: opts.model, resumed: resumeId !== undefined, allowedTools: ALLOWED_TOOLS },
+    timestamp: Date.now(),
+  })
+
   return new Promise((resolve, reject) => {
     const child = spawn("claude", args, { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] })
 
     let full = ""
+    // stderr was piped and never read — on failure the process's own
+    // explanation was discarded and only the exit code logged. Bounded drain.
+    let stderrTail = ""
+    child.stderr?.on("data", (d) => {
+      stderrTail = (stderrTail + String(d)).slice(-2000)
+    })
+    const withStderr = (message: string) => (stderrTail.trim() ? `${message}: ${stderrTail.trim()}` : message)
     let sessionId = resumeId ?? ""
     let settled = false
     const allToolCalls: ToolCallRecord[] = []
@@ -202,14 +221,15 @@ function runClaudeCodeProcess(opts: TurnOptions, resumeId: string | undefined): 
 
     child.on("error", (err) => {
       cleanup()
-      emit({ type: "error", callId: "", message: err.message, timestamp: Date.now() })
-      reject(err)
+      const message = withStderr(err.message)
+      emit({ type: "error", callId: "", message, timestamp: Date.now() })
+      reject(new Error(message))
     })
 
     child.on("close", (code) => {
       cleanup()
       if (!settled && code !== 0) {
-        const message = `claude -p exited with code ${code}`
+        const message = withStderr(`claude -p exited with code ${code}`)
         emit({ type: "error", callId: "", message, timestamp: Date.now() })
         reject(new Error(message))
       }

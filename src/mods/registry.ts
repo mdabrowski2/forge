@@ -118,6 +118,20 @@ class ModRegistry {
         ;(cb as HookCallback<E>)(payload)
       } catch (e) {
         console.error(`[mods] hook "${event}" (${modName}) failed:`, e)
+        // Notice via the in-scope sink ONLY — never publishNotice (it imports
+        // this registry: a cycle). Skipped for transparencyEvent itself: the
+        // sink fans out through emitHook("transparencyEvent", …), so a notice
+        // here would recurse until stack overflow. Payload keys only — values
+        // can carry full message histories.
+        if (event === "transparencyEvent" || !this.emitSink) continue
+        this.emitSink({
+          type: "notice",
+          callId: "",
+          source: "hooks",
+          name: "hook-failed",
+          data: { event, mod: modName, payloadKeys: Object.keys(payload ?? {}) },
+          timestamp: Date.now(),
+        })
       }
     }
   }

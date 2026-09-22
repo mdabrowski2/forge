@@ -145,7 +145,9 @@ Proof: boot is not drivable headless → rule it (ledger): extract `collectBootN
 
 ---
 
-### Task 5: Hook failures, CLI argv, integration outcomes (audit #3+4+5)
+### Task 5: Hook failures, CLI argv, integration outcomes (audit #3+4+5) — 5a SHIPPED (hooks + CLI)
+
+Hooks: `emitHook` catch emits keys-only `notice('hooks','hook-failed',{event,mod,payloadKeys})` via in-scope `emitSink` (never `publishNotice` — import cycle); skipped for `transparencyEvent` itself (recursion guard: sink fans out through the same hook set). CLI: static turn-start notice `{model, resumed, allowedTools}` (argv dump replaced — argv is static except userText/model/resume); bounded (2000-char) stderr drain into `close`/`error` failure messages; rate-limit left as the existing `custom` event (no duplication). Proofs: hooks incl. termination case; CLI via in-repo fake binary (`scripts/fixtures/claude`, self-PATH-wired). Note: child-`error` path now rejects enriched `Error` instead of raw err. TUI never uses this harness (Electron-only notices) — documented.
 
 **Files:** `src/mods/registry.ts`, `src/harness/claude-code-cli-harness.ts`, `src/integrations/quest-tracker.ts`, `src/integrations/bitbucket.ts`
 
