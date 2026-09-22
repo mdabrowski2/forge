@@ -689,7 +689,6 @@ $("mods-reload").addEventListener("click", async (e) => {
     btn.textContent = "reload mods"
   }, 1500)
 })
-}
 
 // ---- skills panel -----------------------------------------------------------
 

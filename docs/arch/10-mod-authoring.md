@@ -91,7 +91,7 @@ Toggle in the mods panel per scope tab, or edit `~/.forge/config.json` (`mods` k
 - `mod-check` exits: `0` valid (`valid: name=… commands=[…]`), `1` broken (`invalid: <reason>`), `2` no entry file (`index.{js,mjs} missing`).
 - Broken mods in the app: the mods panel row shows status `failed` plus the `mod-error` row with the message (`public/app.js:552-557`); boot logs `[mods] <name>: <error>`; `[mods] dir:` tells you which folder was scanned.
 - Reload semantic: "reload mods" resets registrations then loads current disk state, so a reload with a newly-broken mod *unregisters* its previous contributions until you fix and reload again. Reload twice with no edits: identical `loaded` lists, never a duplicate-registration error.
-- Reload picks up edited files (staged fresh import); restart is never required for mod changes. Constraint: keep mods self-contained at setup time — post-setup lazy relative imports are unsupported on the reload path (boot path unaffected).
+- Reload picks up edited files (staged fresh import); restart is never required for mod changes. Constraint: keep mod dirs lean (no vendored `node_modules`) — reload copies the whole dir, and symlinks that resolve at boot may fail the copy. Post-setup lazy relative imports are unsupported on the reload path (boot path unaffected).
 
 ## Trust note
 
