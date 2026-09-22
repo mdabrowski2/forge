@@ -48,6 +48,13 @@ let config: ForgeConfig = defaultConfig()
 let modLoadResult: ModLoadResult = { loaded: [], failed: [], dir: modsDir }
 const transcript: TransparencyEvent[] = []
 
+// every renderer send funnels here: a non-null win can still be destroyed
+// (window closed, app alive on macOS) and send() then throws inside the
+// handler — observed as "Object has been destroyed" from prInboxPreview.
+const sendToUI = (channel: string, ...args: unknown[]) => {
+  if (win && !win.isDestroyed()) win.webContents.send(channel, ...args)
+}
+
 // shared live sink for mutation/notice events (chat turns have their own;
 // this keeps one ring-cap + send path for everything else). Turn-tagged so
 // live routing matches replay routing exactly (see rendering contract).
@@ -55,7 +62,7 @@ const pushToUI = (e: TransparencyEvent) => {
   const tagged = { ...e, turn: session.messages.length }
   transcript.push(tagged)
   if (transcript.length > 2000) transcript.shift()
-  win?.webContents.send("forge:transparency", tagged)
+  sendToUI("forge:transparency", tagged)
 }
 
 // restores whichever model/harness a session last used, so switching
