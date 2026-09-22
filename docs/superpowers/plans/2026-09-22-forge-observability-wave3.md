@@ -198,13 +198,13 @@ Request card body: `{ settings: e.settings, system: e.system, messages: e.messag
 
 ---
 
-### Gate
+### Gate — SHIPPED (revised per red-team)
 
-- [ ] All `scripts/observability-*.ts` + `scripts/hardening-*.ts` green (isolated HOME each)
-- [ ] `bunx tsc --noEmit` exit 0; `node --check public/app.js`
-- [ ] `bun scripts/mods-test.ts` (disabled/broken lines), `bun scripts/transparency-test.ts`
-- [ ] `grep -Rni "apiKey.*SECRET\|SECRET-ABC" ~/.forge/logs/forge.log` equivalent on a seeded run? — decided: redaction proof in Task 3 covers it; gate re-runs Task 3's proof (no live-log grep needed)
-- [ ] Commit only on fallout
+- Ollama pre-check (`/api/version`): model-backed suites run only when reachable, else ledger-skipped (never mistaken for regression).
+- Seeded log-grep (`scripts/observability-loglevel-test.ts`): traceMutation with secrets through the real `logEvent` path under isolated HOME; seeded `forge.log` asserted secret-free with `<redacted>` present.
+- All `observability-*` + `hardening-*` scripts green, `tsc` clean, `node --check` clean, `mods-test` + `transparency-test` green.
+- Residual restated: notice-card/tools rendering is parse-verified (headed visual needs a headed run).
+- Rollback: one revert per task commit (all task commits single-purpose).
 
 ---
 
