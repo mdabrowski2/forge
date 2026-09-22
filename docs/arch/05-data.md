@@ -4,7 +4,7 @@ All built. Root on disk: `~/.forge` (`dataDir`, `src/config.ts:49`).
 
 ## `config.json` (`src/config.ts:38-122`)
 
-Shape: `{providers[], theme, cwd, thinking, mods}`. First boot writes factory defaults (4 providers: ollama/anthropic/muse-spark/opencode-cli). Loads merge **by id** (matching on the provider's `id` string): your entries win untouched; any missing *built-in* provider is appended so upgrades reach existing configs. Malformed JSON today falls back to defaults silently (discarding your edits — hardening item `09-audit.md#P0-2` proposes a backup before overwrite). **Disable, don't delete**: deleting a built-in id makes it reappear on next boot; set `disabled:true` to keep it skipped.
+Shape: `{providers[], theme, cwd, thinking, mods}`. First boot writes factory defaults (4 providers: ollama/anthropic/muse-spark/opencode-cli). Loads merge **by id** (matching on the provider's `id` string): your entries win untouched; any missing *built-in* provider is appended so upgrades reach existing configs. Malformed JSON is copied to `config.json.bak.<epochMillis>-<rand>` beside the file with a `[config]` log line naming the backup, then defaults load (hardening Wave 1). **Disable, don't delete**: deleting a built-in id makes it reappear on next boot; set `disabled:true` to keep it skipped.
 
 ## Sessions (`src/sessions/store.ts`, dir `~/.forge/sessions/`)
 

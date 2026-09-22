@@ -5,7 +5,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 ## P0 — correctness / data loss
 
 - [ ] 1. **TUI turn persistence asymmetry** (proposed, ~0.5d): `app.tsx send()` appends the user msg, then appends `result.messages` (assistant+tools) but builds the rendered assistant bubble separately — a crash between store writes can double/misorder. Fix: single persist-then-render path (write all messages, then re-read for render).
-- [ ] 2. **Malformed config silent fallback** (proposed, ~0.5d, `src/config.ts:114-116`): corrupt `config.json` discards user settings without backup. Fix: copy to `<file>.bak.<epoch>` before overwriting with defaults.
+- [x] 2. **Malformed config silent fallback** — shipped (hardening Wave 1): corrupt `config.json` is copied to `config.json.bak.<epochMillis>-<rand>` with a `[config]` log line before defaults load.
 - [ ] 3. **Session-list crash surface** (proposed, ~0.5d, `src/sessions/store.ts:129-136`): one corrupt `.jsonl` line throws inside `JSON.parse` and can break boot-resume. Fix: per-file try/catch; move bad files to `~/.forge/sessions/quarantine/` (a holding folder for corrupt files) and continue.
 - [ ] 4. **Unbounded session/event files** (proposed, ~1d): long sessions grow JSONL (one-JSON-per-line) files forever; `loadEvents` parses everything into memory. Fix: rotation (new file per N messages) or cap + lazy load.
 
