@@ -1,12 +1,13 @@
 import { z } from "zod"
 import { readFileSync, statSync } from "fs"
 import { resolve } from "path"
+import { resolveInCwd } from "./paths"
 
-export const readTool = {
+export const readTool = (cwd: string) => ({
   description:
     "Read a text file from disk. Use offset/limit to read specific line ranges of large files. Long lines are truncated at 2000 chars.",
   inputSchema: z.object({
-    path: z.string().describe("Absolute path to the file to read"),
+    path: z.string().describe("Absolute path, or relative to the session's cwd, to the file to read"),
     offset: z
       .number()
       .int()
@@ -16,7 +17,8 @@ export const readTool = {
     limit: z.number().int().positive().optional().describe("Maximum number of lines to read"),
   }),
   execute: async ({ path, offset, limit }: { path: string; offset?: number; limit?: number }) => {
-    const abs = resolve(path)
+    const abs = resolveInCwd(cwd, path)
+    if (!abs) return `Refused: ${path} escapes the session working directory`
     let content: string
     try {
       const st = statSync(abs)
@@ -33,4 +35,4 @@ export const readTool = {
     )
     return `File: ${abs}\nLines: ${lines.length} total, showing ${start + 1}–${end}\n\n${slice.join("\n")}`
   },
-}
+})

@@ -2,6 +2,7 @@ import { z } from "zod"
 import { readdirSync, readFileSync, statSync } from "fs"
 import { join, resolve } from "path"
 import { globToRegExp } from "./glob"
+import { resolveInCwd } from "./paths"
 
 const SKIP = new Set(["node_modules", ".git", "dist", "release", ".cache", "target"])
 
@@ -35,7 +36,8 @@ export const grepTool = (cwd: string) => ({
       return `Invalid regex: ${e instanceof Error ? e.message : String(e)}`
     }
     const incRe = include ? globToRegExp(include) : null
-    const base = resolve(searchPath ?? cwd)
+    const base = resolveInCwd(cwd, searchPath ?? ".")
+    if (!base) return `Refused: ${searchPath} escapes the session working directory`
     const results: string[] = []
 
     const searchFile = (file: string) => {

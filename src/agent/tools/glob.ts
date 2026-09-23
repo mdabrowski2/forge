@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { readdirSync } from "fs"
 import { join, resolve } from "path"
+import { resolveInCwd } from "./paths"
 
 // convert a glob pattern to a regex: ** (any depth), * (within a segment), ? (single char)
 export const globToRegExp = (pattern: string): RegExp => {
@@ -42,7 +43,9 @@ export const globTool = (cwd: string) => ({
       .describe("Directory to search from (defaults to the workspace root)"),
   }),
   execute: async ({ pattern, cwd: searchCwd }: { pattern: string; cwd?: string }) => {
-    const base = resolve(searchCwd ?? cwd)
+    // patterns stay untouched (different input kind); only the base dir is confined
+    const base = resolveInCwd(cwd, searchCwd ?? ".")
+    if (!base) return `Refused: ${searchCwd} escapes the session working directory`
     const re = globToRegExp(pattern.replace(/\\/g, "/"))
     const results: string[] = []
     const walk = (dir: string, depth: number) => {

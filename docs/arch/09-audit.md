@@ -12,7 +12,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 ## P1 — security
 
 - [x] 5. **Mods are in-process RCE** — minimal slice shipped (Wave 2): boot logs the scanned `[mods] dir:` in both UIs; trust model documented in `01-context.md` + `10-mod-authoring.md`. Full allowlist/signature stays proposed.
-- [ ] 6. **Tool path traversal** (proposed, ~1d): tools rely on session cwd + `~/` expansion; verify each of read/write/edit/bash/glob/grep constrains `resolve(cwd, input)` and rejects `..` escapes where intended. Fix: add `scripts/tool-path-test.ts` matrix.
+- [x] 6. **Tool path traversal** — shipped (Wave 4): shared `resolveInCwd()` guard (platform-aware, best-effort realpath, fail-closed on leading `..`) on read/write/edit + glob/grep base dirs; patterns/regexes exempt by input-kind; bash explicitly exempt (a shell with a cwd is not a sandbox). Refusals return `Refused:` strings on the existing file-error path.
 - [ ] 7. **`openPath` can open anything** (proposed, ~0.5d): acceptable for a single-user app, but every invocation should be logged to the transparency log.
 - [ ] 8. **Secrets handling** (proposed, ~0.5d): keys only via environment (`ANTHROPIC_API_KEY`, `MUSE_SPARK_*`); system-prompt and transparency `request` events carry full prompt+messages — verify `setConfig` never echoes keys to renderer logs and session files never capture env values. Existing coverage: `scripts/*-test.ts` do not assert this (gap).
 
