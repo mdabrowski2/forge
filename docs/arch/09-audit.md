@@ -21,11 +21,11 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 - [x] 9. **Provider failure identity** — shipped (Wave 4): turn errors and thrown failures carry `[provider-id]` + setup hint at the single loop boundary (SDK swallows causes, so enrichment happens there); rendered via existing error paths. No session degraded flag — deliberately dropped: unwritten-by-any-reader state rots; the error text is the surface.
 - [ ] 10. **Quest `:3060` assumed, no timeout** (proposed, ~0.5d): hardcoded default URL with no health check. Fix: connectivity probe + timeout + visible degraded badge.
 - [x] 11. **Step-budget stop** — shipped (Wave 4): `notice(loop/step-budget-exhausted)` on budget exits only (abort-aware predicate, no misattribution).
-- [ ] 12. **Hook isolation** (proposed, needs design): `emitHook` catches per-hook throws (good) but a slow synchronous hook blocks the whole turn. Fix: document hooks must be non-blocking; if async hooks are ever added, race them against a timeout (`Promise.race` — finish whichever comes first).
+- [x] 12. **Hook isolation** — documented (Wave 4): hooks must be fast and non-blocking (`10-mod-authoring.md` recipe); no async hooks exist so no timeout race is needed.
 
 ## P2 — test/observability gaps (existing suites: `scripts/smoke|providers-test|mods-test|mods-runtime-test|transparency-test|tool-test.ts`)
 
-- [ ] 13. **Missing cases** (proposed): corrupt-config backup, corrupt-session quarantine, duplicate-provider-id, disabled-mod tool/call exclusion, `/cd` invalid dir, `openExternal` non-http rejection, transcript-ring overflow, multi-scope mod merge matrix.
+- [x] 13. **Missing cases** — closed (Wave 4 sweep): every case proven or pre-covered (matrix in `scripts/hardening-wave4-sweep-test.ts`; disabled-mod in `mods-test`).
 - [x] 14. **Structured turn IDs** — collapsed by design (Wave 4): the existing `turn` index already correlates every event of a turn on persisted and live paths; no second key minted.
 
 ## Quick wins (no design needed, good first tasks)
