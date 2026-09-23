@@ -26,6 +26,12 @@ export interface CommandResult {
   args: string
 }
 
+/** validate a shell-open target: trimmed non-empty string or null (no action). */
+export function resolveOpenTarget(p: unknown): string | null {
+  if (typeof p !== "string" || !p.trim()) return null
+  return p.trim()
+}
+
 export async function runCommand(text: string, ctx: CommandContext): Promise<CommandResult> {
   const { session, registry } = ctx
   const m = typeof text === "string" ? text.trim().match(/^\/(\S+)\s*([\s\S]*)$/) : null

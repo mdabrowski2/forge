@@ -13,14 +13,14 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 
 - [x] 5. **Mods are in-process RCE** — minimal slice shipped (Wave 2): boot logs the scanned `[mods] dir:` in both UIs; trust model documented in `01-context.md` + `10-mod-authoring.md`. Full allowlist/signature stays proposed.
 - [x] 6. **Tool path traversal** — shipped (Wave 4): shared `resolveInCwd()` guard (platform-aware, best-effort realpath, fail-closed on leading `..`) on read/write/edit + glob/grep base dirs; patterns/regexes exempt by input-kind; bash explicitly exempt (a shell with a cwd is not a sandbox). Refusals return `Refused:` strings on the existing file-error path.
-- [ ] 7. **`openPath` can open anything** (proposed, ~0.5d): acceptable for a single-user app, but every invocation should be logged to the transparency log.
+- [x] 7. **`openPath` logging** — shipped (Wave 4): every open attempt emits a `shell/openPath` notice (validated first, null-inputs silent).
 - [ ] 8. **Secrets handling** (proposed, ~0.5d): keys only via environment (`ANTHROPIC_API_KEY`, `MUSE_SPARK_*`); system-prompt and transparency `request` events carry full prompt+messages — verify `setConfig` never echoes keys to renderer logs and session files never capture env values. Existing coverage: `scripts/*-test.ts` do not assert this (gap).
 
 ## P1 — resilience
 
 - [ ] 9. **Provider `unreachable` vs `unconfigured`** (proposed, ~0.5d, `src/providers/types.ts:22-29`): anthropic-kind assumes reachability (no list API); failures surface only at turn time. Fix: include provider id + setup hint in turn errors; mark status down for the session.
 - [ ] 10. **Quest `:3060` assumed, no timeout** (proposed, ~0.5d): hardcoded default URL with no health check. Fix: connectivity probe + timeout + visible degraded badge.
-- [ ] 11. **`MAX_STEPS=8` silent stop** (proposed, ~0.5d): loop exiting by step budget with pending tool calls looks like a normal answer. Fix: emit a `custom` warning transparency event when the budget (not the model) ends the turn.
+- [x] 11. **Step-budget stop** — shipped (Wave 4): `notice(loop/step-budget-exhausted)` on budget exits only (abort-aware predicate, no misattribution).
 - [ ] 12. **Hook isolation** (proposed, needs design): `emitHook` catches per-hook throws (good) but a slow synchronous hook blocks the whole turn. Fix: document hooks must be non-blocking; if async hooks are ever added, race them against a timeout (`Promise.race` — finish whichever comes first).
 
 ## P2 — test/observability gaps (existing suites: `scripts/smoke|providers-test|mods-test|mods-runtime-test|transparency-test|tool-test.ts`)

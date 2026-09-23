@@ -35,6 +35,14 @@ export interface ChatTurnResult {
 
 export const MAX_STEPS = 8
 
+/**
+ * Budget-exit detector (pure, unit-pinned): the tool loop stopped because it
+ * ran out of steps with tool calls still pending — NOT a clean finish and
+ * NOT an abort. Aborts must never be misattributed as model behavior.
+ */
+export const isBudgetExhausted = (stepsTaken: number, lastHadToolCalls: boolean, aborted: boolean): boolean =>
+  !aborted && stepsTaken >= MAX_STEPS && lastHadToolCalls
+
 export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult> {
   const started = Date.now()
 
@@ -94,8 +102,11 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
   let full = ""
   const allToolCalls: { id: string; name: string; args: unknown }[] = []
   const persistMessages: ChatMessage[] = []
+  let stepsTaken = 0
+  let lastHadToolCalls = false
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    stepsTaken++
     const stepStarted = Date.now()
     // single source for the reasoning flag: the call below AND the
     // transparency record must never disagree about what was requested
@@ -165,8 +176,8 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
     const steps = await result.steps
     const lastStep = steps[steps.length - 1]
     const toolCalls = lastStep.toolCalls
+    lastHadToolCalls = toolCalls.length > 0
     if (!toolCalls.length) break
-
     // assistant message with the tool calls it made
     modelMessages.push({
       role: "assistant",
@@ -243,6 +254,12 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
         toolName: tc.toolName,
       })
     }
+  }
+
+  // budget exit (not a clean finish, not an abort): the final answer below
+  // would otherwise read as normal while tool calls went unexecuted
+  if (isBudgetExhausted(stepsTaken, lastHadToolCalls, opts.signal?.aborted ?? false)) {
+    emit({ type: "notice", callId: "", source: "loop", name: "step-budget-exhausted", data: { model: opts.model, steps: MAX_STEPS }, timestamp: Date.now() })
   }
 
   // one assistant message with the full text + all tool calls, then the tool results

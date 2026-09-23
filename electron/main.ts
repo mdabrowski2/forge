@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, WebContentsView } from "ele
 import { fileURLToPath } from "url"
 import path from "path"
 import { writeFileSync } from "fs"
-import { runCommand } from "./commands"
+import { runCommand, resolveOpenTarget } from "./commands"
 import { assembleDebugBundle, readTailLines } from "./debug-bundle"
 import { FORGE_VERSION } from "../src/version"
 import { collectBootNotices } from "./boot-notices"
@@ -412,8 +412,10 @@ ipcMain.handle("forge:openQuestTracker", () => openQuestTrackerView())
 ipcMain.handle("forge:closeQuestTracker", () => closeQuestTrackerView())
 
 ipcMain.handle("forge:openPath", async (_e, p: unknown) => {
-  if (typeof p !== "string" || !p.trim()) return null
-  const err = await shell.openPath(p.trim())
+  const target = resolveOpenTarget(p)
+  if (!target) return null
+  publishNotice("shell", "openPath", { path: target }, { session, push: pushToUI })
+  const err = await shell.openPath(target)
   return err || null
 })
 
