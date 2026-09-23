@@ -12,7 +12,8 @@
     "electron:build": "bun build electron/main.ts --target node --format esm --external electron --outfile dist/main.mjs && bun build electron/preload.ts --target node --format cjs --external electron --outfile dist/preload.cjs",
     "electron:start": "bun run electron:build && electron .",
     "electron:package": "bun run electron:build && electron-builder --win portable",
-    "electron:package:mac": "bun run electron:build && electron-builder --mac"
+    "electron:package:mac": "bun run electron:build && electron-builder --mac",
+    "electron:install": "bun run electron:package:mac && cp -R \"release/mac-arm64/forge.app\" /Applications/ && xattr -dr com.apple.quarantine /Applications/forge.app && mdimport /Applications/forge.app"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "latest",
