@@ -601,6 +601,13 @@ const renderMods = (mods) => {
     status.textContent = mod.status
     top.appendChild(name)
     top.appendChild(status)
+    if (mod.trusted === false) {
+      const trust = document.createElement("span")
+      trust.className = "mod-untrusted"
+      trust.title = "Not flagged trusted in config (ADR-006) — runs anyway"
+      trust.textContent = "untrusted"
+      top.appendChild(trust)
+    }
     row.appendChild(top)
 
     if (mod.error) {

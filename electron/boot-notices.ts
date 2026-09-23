@@ -13,12 +13,16 @@ export interface BootDiagnostics {
   loaded: string[]
   failed: { name: string; error: string }[]
   skipped: { id: string; reason: string }[]
+  /** loaded mod dirNames lacking trusted:true (ADR-006); optional, defaults to none */
+  untrusted?: string[]
 }
 
 export function collectBootNotices(d: BootDiagnostics): NoticeEvent[] {
+  const untrusted = d.untrusted ?? []
   const out = [notice("boot", "mods.dir", { dir: d.modsDir })]
   if (d.loaded.length) out.push(notice("boot", "mods.loaded", { loaded: d.loaded }))
   if (d.failed.length) out.push(notice("boot", "mods.failed", { failed: d.failed }))
   if (d.skipped.length) out.push(notice("boot", "providers.skipped", { skipped: d.skipped }))
+  if (untrusted.length) out.push(notice("boot", "mods.untrusted", { mods: untrusted }))
   return out
 }

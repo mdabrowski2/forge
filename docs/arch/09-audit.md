@@ -11,7 +11,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 
 ## P1 — security
 
-- [x] 5. **Mods are in-process RCE** — minimal slice shipped (Wave 2): boot logs the scanned `[mods] dir:` in both UIs; trust model documented in `01-context.md` + `10-mod-authoring.md`. Full allowlist/signature stays proposed.
+- [x] 5. **Mod trust visibility** — shipped (Waves 2+4): boot logs scanned dir; per-mod `trusted` flag (ADR-006, default untrusted) with first-boot warning notice + panel badge; enforcement deliberately out of scope.
 - [x] 6. **Tool path traversal** — shipped (Wave 4): shared `resolveInCwd()` guard (platform-aware, best-effort realpath, fail-closed on leading `..`) on read/write/edit + glob/grep base dirs; patterns/regexes exempt by input-kind; bash explicitly exempt (a shell with a cwd is not a sandbox). Refusals return `Refused:` strings on the existing file-error path.
 - [x] 7. **`openPath` logging** — shipped (Wave 4): every open attempt emits a `shell/openPath` notice (validated first, null-inputs silent).
 - [ ] 8. **Secrets handling** (proposed, ~0.5d): keys only via environment (`ANTHROPIC_API_KEY`, `MUSE_SPARK_*`); system-prompt and transparency `request` events carry full prompt+messages — verify `setConfig` never echoes keys to renderer logs and session files never capture env values. Existing coverage: `scripts/*-test.ts` do not assert this (gap).

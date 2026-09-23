@@ -1079,6 +1079,15 @@ body.hide-sys .t-card.sys {
   border: 1px solid var(--rose);
 }
 
+.mod-untrusted {
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
 .mod-error {
   color: var(--rose);
   font-size: 11px;

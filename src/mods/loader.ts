@@ -95,6 +95,7 @@ export interface ModInfo {
   settings: Record<string, unknown>
   status: "loaded" | "failed" | "disabled"
   error?: string
+  trusted: boolean
 }
 
 // side-effect-free: never imports/executes mod code, just cross-references
@@ -109,6 +110,6 @@ export function listMods(config: ForgeConfig, lastResult: ModLoadResult, dir: st
       const settings = config.mods[dirName]?.settings ?? {}
       const failedEntry = lastResult.failed.find((f) => f.name === dirName)
       const status: ModInfo["status"] = !enabled ? "disabled" : failedEntry ? "failed" : "loaded"
-      return { dirName, enabled, settings, status, error: failedEntry?.error }
+      return { dirName, enabled, settings, status, error: failedEntry?.error, trusted: config.mods[dirName]?.trusted === true }
     })
 }

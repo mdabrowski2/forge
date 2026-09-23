@@ -33,6 +33,8 @@ export interface ProviderConfig {
 export interface ModConfig {
   enabled?: boolean
   settings?: Record<string, unknown>
+  /** explicit trust flag (ADR-006): unset = untrusted, warn at boot, never block */
+  trusted?: boolean
 }
 
 export interface ForgeConfig {

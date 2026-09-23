@@ -153,11 +153,17 @@ const boot = async () => {
   // notice twins for terminal-less users: same content as the console lines
   // above, delivered to transcript + forge.log (re-emitted every launch by
   // design; renderer fetches getTranscript at boot and appends them feed-end)
+  // Untrusted loaded mods warn (ADR-006): visibility, not enforcement.
+  const untrusted = listMods(config, modLoadResult)
+    .filter((m) => m.status === "loaded" && !m.trusted)
+    .map((m) => m.dirName)
+  if (untrusted.length) console.error(`[mods] untrusted: ${untrusted.join(", ")} (set trusted:true in config to silence)`)
   for (const n of collectBootNotices({
     modsDir: modLoadResult.dir,
     loaded: modLoadResult.loaded,
     failed: modLoadResult.failed,
     skipped,
+    untrusted,
   })) {
     logEvent(n)
     transcript.push(n)
@@ -365,6 +371,7 @@ ipcMain.handle("forge:modsForScope", (_e, scope: ModScope) => {
     error: m.error,
     enabled: scoped[m.dirName]?.enabled,
     settings: scoped[m.dirName]?.settings ?? {},
+    trusted: m.trusted,
   }))
 })
 
