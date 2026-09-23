@@ -164,16 +164,25 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
       },
       onError: (e) => {
         const message = e.error instanceof Error ? e.error.message : String(e.error)
-        emit({ type: "error", callId: "", message, timestamp: Date.now() })
+        emit({ type: "error", callId: "", message: `[${opts.provider.id}] ${message}`, timestamp: Date.now() })
       },
     })
 
-    for await (const delta of result.textStream) {
-      full += delta
-      opts.onDelta(full)
-    }
+    // model-call failures surface through the SDK wrapper (original cause
+    // swallowed) — enrich once here so both UIs name the provider; the
+    // onError event above already fired, so this path emits nothing.
+    let steps
+    try {
+      for await (const delta of result.textStream) {
+        full += delta
+        opts.onDelta(full)
+      }
 
-    const steps = await result.steps
+      steps = await result.steps
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      throw new Error(`[${opts.provider.id}] ${message} — check baseURL/apiKey in config`)
+    }
     const lastStep = steps[steps.length - 1]
     const toolCalls = lastStep.toolCalls
     lastHadToolCalls = toolCalls.length > 0

@@ -18,7 +18,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 
 ## P1 — resilience
 
-- [ ] 9. **Provider `unreachable` vs `unconfigured`** (proposed, ~0.5d, `src/providers/types.ts:22-29`): anthropic-kind assumes reachability (no list API); failures surface only at turn time. Fix: include provider id + setup hint in turn errors; mark status down for the session.
+- [x] 9. **Provider failure identity** — shipped (Wave 4): turn errors and thrown failures carry `[provider-id]` + setup hint at the single loop boundary (SDK swallows causes, so enrichment happens there); rendered via existing error paths. No session degraded flag — deliberately dropped: unwritten-by-any-reader state rots; the error text is the surface.
 - [ ] 10. **Quest `:3060` assumed, no timeout** (proposed, ~0.5d): hardcoded default URL with no health check. Fix: connectivity probe + timeout + visible degraded badge.
 - [x] 11. **Step-budget stop** — shipped (Wave 4): `notice(loop/step-budget-exhausted)` on budget exits only (abort-aware predicate, no misattribution).
 - [ ] 12. **Hook isolation** (proposed, needs design): `emitHook` catches per-hook throws (good) but a slow synchronous hook blocks the whole turn. Fix: document hooks must be non-blocking; if async hooks are ever added, race them against a timeout (`Promise.race` — finish whichever comes first).
