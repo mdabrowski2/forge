@@ -1,10 +1,12 @@
-import { app, BrowserWindow, ipcMain, shell, WebContentsView } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, shell, WebContentsView } from "electron"
 import { fileURLToPath } from "url"
 import path from "path"
+import { writeFileSync } from "fs"
 import { runCommand } from "./commands"
+import { assembleDebugBundle, readTailLines } from "./debug-bundle"
 import { FORGE_VERSION } from "../src/version"
 import { collectBootNotices } from "./boot-notices"
-import { logEvent } from "../src/transparency/log"
+import { logEvent, logFile } from "../src/transparency/log"
 import { publishNotice, truncateNotice } from "../src/transparency/notice"
 import { traceMutation } from "./mutations"
 import { defaultConfig, loadConfig, saveConfig } from "../src/config"
@@ -413,6 +415,32 @@ ipcMain.handle("forge:openPath", async (_e, p: unknown) => {
   if (typeof p !== "string" || !p.trim()) return null
   const err = await shell.openPath(p.trim())
   return err || null
+})
+
+ipcMain.handle("forge:exportDebug", async () => {
+  const bundle = assembleDebugBundle({
+    version: FORGE_VERSION,
+    platform: process.platform,
+    dateISO: new Date().toISOString(),
+    config,
+    providers: harnesses.map((h) => ({ id: h.id, name: h.name, status: "listed", models: h.models })),
+    mods: listMods(config, modLoadResult),
+    logTail: readTailLines(logFile),
+    messages: session.messages.slice(-100),
+    events: loadEvents(session.id),
+  })
+  const picked = await dialog.showSaveDialog({
+    defaultPath: path.join(app.getPath("downloads"), `forge-debug-${Date.now()}.md`),
+  })
+  // cancel is user intent, not an error — silent by design
+  if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true }
+  try {
+    writeFileSync(picked.filePath, bundle)
+    await shell.showItemInFolder(picked.filePath)
+    return { ok: true, path: picked.filePath }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
 })
 
 ipcMain.handle("forge:openExternal", async (_e, url: unknown) => {

@@ -532,6 +532,22 @@ $("events-toggle").addEventListener("click", () => {
   $("events-toggle").classList.toggle("active", !document.body.classList.contains("hide-events"))
 })
 
+// debug bundle export — mods-panel save-button feedback pattern:
+// swap label, restore after 1.5s; silent on user-cancel
+$("export-debug").addEventListener("click", async (e) => {
+  const btn = e.currentTarget
+  btn.textContent = "packing…"
+  try {
+    const res = await window.forge.exportDebug()
+    btn.textContent = res.ok ? "saved" : res.cancelled ? "🐞 report" : "export failed"
+  } catch {
+    btn.textContent = "export failed"
+  }
+  setTimeout(() => {
+    btn.textContent = "🐞 report"
+  }, 1500)
+})
+
 // session/system feed filter — cards carry .sess/.sys via makeCard's shared
 // routing predicate; both visible by default (current behavior preserved).
 // Clicking an active scope isolates it; clicking again restores both.

@@ -1,6 +1,7 @@
 // agent-ready debug bundle assembly — pure function over injected deps
 // (zero Electron imports, headless-testable). Redaction reuses the shared
 // constructor; truncation follows the notice marker convention.
+import { existsSync, openSync, readSync, closeSync, fstatSync } from "fs"
 import { redactValue, truncateNotice } from "../src/transparency/notice"
 import type { ModInfo } from "../src/mods/loader"
 import type { ChatMessage } from "../src/sessions/store"
@@ -20,6 +21,25 @@ export interface DebugBundleDeps {
 const DISCLAIMER = "> Review before sharing — conversation text is included verbatim; only config/provider credentials are redacted.";
 
 const section = (title: string, body: string): string => `## ${title}\n\n${body || "(none)"}\n`
+
+/** last maxLines of a file via a trailing byte-cap read (never the whole file). */
+export function readTailLines(file: string, maxBytes = 65536, maxLines = 200): string[] {
+  if (!existsSync(file)) return []
+  const fd = openSync(file, "r")
+  try {
+    const size = fstatSync(fd).size
+    const start = Math.max(0, size - maxBytes)
+    const buf = Buffer.alloc(size - start)
+    readSync(fd, buf, 0, buf.length, start)
+    const lines = buf.toString("utf-8").split("\n")
+    // first chunk may start mid-line (unless we read from 0) — drop the fragment
+    const complete = start === 0 ? lines : lines.slice(1)
+    const nonEmpty = complete.filter((l) => l.length > 0)
+    return nonEmpty.slice(-maxLines)
+  } finally {
+    closeSync(fd)
+  }
+}
 
 const asJson = (v: unknown): string => {
   const s = JSON.stringify(v, null, 2) ?? "(unserializable)"

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron"
 
 contextBridge.exposeInMainWorld("forge", {
   version: () => ipcRenderer.invoke("forge:version"),
+  exportDebug: () => ipcRenderer.invoke("forge:exportDebug"),
   chat: (text: string) => ipcRenderer.invoke("forge:chat", text),
   stop: () => ipcRenderer.invoke("forge:stop"),
   getModels: () => ipcRenderer.invoke("forge:models"),
