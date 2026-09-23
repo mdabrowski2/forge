@@ -55,7 +55,28 @@ export interface NoticeSinks {
   turn?: number
   /** live push (renderer socket, transcript ring — owned by the caller) */
   push?: (event: TransparencyEvent) => void
+  /** set false to bypass repeat-dedup (error paths must pass it) */
+  dedup?: boolean
 }
+
+// canonical data comparison: sorted-keys stringify of the payload ONLY —
+// never the envelope (timestamps differ every emit and would make equality
+// impossible). Key order at construction sites is not trusted.
+const canonData = (v: unknown): string =>
+  JSON.stringify(v, (_, val) =>
+    val !== null && typeof val === "object" && !Array.isArray(val)
+      ? Object.fromEntries(Object.keys(val).sort().map((k) => [k, val[k]]))
+      : val
+  )
+
+const isErrorData = (name: string, data: unknown): boolean =>
+  name.endsWith("-error") ||
+  (data !== null && typeof data === "object" && !Array.isArray(data) && (data as Record<string, unknown>).ok === false)
+
+// repeat suppression per (source, name): identical repeats are swallowed and
+// counted; the next change carries the count. Module memory — restart resets.
+const lastBody = new Map<string, string>()
+const suppressed = new Map<string, number>()
 
 /** single fan-out every producer uses: log + mod hooks always; session + push when given. */
 export const publishNotice = (
@@ -65,6 +86,24 @@ export const publishNotice = (
   sinks: NoticeSinks = {},
   callId = ""
 ): NoticeEvent => {
+  const key = `${source}\n${name}`
+  const bypass = sinks.dedup === false || isErrorData(name, data)
+  if (!bypass) {
+    const body = canonData(data)
+    if (lastBody.get(key) === body) {
+      suppressed.set(key, (suppressed.get(key) ?? 0) + 1)
+      return notice(source, name, data, callId)
+    }
+    const count = suppressed.get(key) ?? 0
+    suppressed.delete(key)
+    lastBody.set(key, body)
+    if (count > 0 && data !== null && typeof data === "object" && !Array.isArray(data)) {
+      data = { ...(data as Record<string, unknown>), _suppressedRepeats: count }
+    }
+  } else {
+    lastBody.set(key, canonData(data))
+    suppressed.delete(key)
+  }
   const event = notice(source, name, data, callId)
   logEvent(event)
   registry.emitHook("transparencyEvent", event)
