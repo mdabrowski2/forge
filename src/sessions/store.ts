@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "fs"
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 import { dataDir } from "../config"
@@ -59,10 +59,23 @@ export function appendMessage(session: Session, msg: ChatMessage): void {
 }
 
 // transparency events are persisted per-session so the UI can replay them
-// after a reload — each event carries the turn index it belongs to
+// after a reload — each event carries the turn index it belongs to.
+// Rotation: when the live file exceeds EVENTS_ROTATE_BYTES it becomes
+// `<id>.events.jsonl.<epoch>` (suffix form, so the listSessions scan —
+// endsWith .jsonl excluding .events.jsonl — ignores segments) and a fresh
+// live file continues. Nothing is ever deleted.
+export const EVENTS_ROTATE_BYTES = 1024 * 1024 // pinned: sessions are KB-scale; 1MB ≈ thousands of turns
+
 export function appendEvent(session: Session, event: unknown): void {
   mkdirSync(sessionsDir, { recursive: true })
-  appendFileSync(join(sessionsDir, `${session.id}.events.jsonl`), JSON.stringify(event) + "\n")
+  const file = join(sessionsDir, `${session.id}.events.jsonl`)
+  try {
+    if (existsSync(file) && statSync(file).size > EVENTS_ROTATE_BYTES)
+      renameSync(file, `${file}.${Date.now()}`)
+  } catch {
+    // rotation best-effort; the append below must never fail because of it
+  }
+  appendFileSync(file, JSON.stringify(event) + "\n")
 }
 
 // parse one-JSON-per-line text, skipping corrupt lines but counting them.
@@ -86,12 +99,25 @@ const safeParseLines = <T>(text: string, file: string): T[] => {
 export const MAX_EVENTS_LOAD = 500
 
 // Bounded read, honestly labeled: caps retained memory, NOT parse cost —
-// the whole file is still parsed (full disk rotation is follow-up work).
-// Callers showing history must treat the result as the latest-N window.
+// the whole file is still parsed. Callers showing history must treat the
+// result as the latest-N window.
 export function loadEvents(id: string, limit: number = MAX_EVENTS_LOAD): unknown[] {
-  const file = join(sessionsDir, `${id}.events.jsonl`)
-  if (!existsSync(file)) return []
-  return safeParseLines<unknown>(readFileSync(file, "utf-8"), file).slice(-limit)
+  const live = join(sessionsDir, `${id}.events.jsonl`)
+  let segments: string[] = []
+  try {
+    segments = readdirSync(sessionsDir)
+      .filter((f) => f.startsWith(`${id}.events.jsonl.`))
+      .sort()
+      .map((f) => join(sessionsDir, f))
+  } catch {
+    // unreadable dir — live file below still attempted
+  }
+  const all: unknown[] = []
+  for (const file of [...segments, live]) {
+    if (!existsSync(file)) continue
+    all.push(...safeParseLines<unknown>(readFileSync(file, "utf-8"), file))
+  }
+  return all.slice(-limit)
 }
 
 export function loadSession(id: string): Session | null {

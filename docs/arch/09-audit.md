@@ -26,7 +26,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 ## P2 — test/observability gaps (existing suites: `scripts/smoke|providers-test|mods-test|mods-runtime-test|transparency-test|tool-test.ts`)
 
 - [ ] 13. **Missing cases** (proposed): corrupt-config backup, corrupt-session quarantine, duplicate-provider-id, disabled-mod tool/call exclusion, `/cd` invalid dir, `openExternal` non-http rejection, transcript-ring overflow, multi-scope mod merge matrix.
-- [ ] 14. **Structured turn IDs** (proposed): events correlate by per-call `callId` today; cross-turn forensics need a `turnId` stamped on every event in the turn.
+- [x] 14. **Structured turn IDs** — collapsed by design (Wave 4): the existing `turn` index already correlates every event of a turn on persisted and live paths; no second key minted.
 
 ## Quick wins (no design needed, good first tasks)
 
