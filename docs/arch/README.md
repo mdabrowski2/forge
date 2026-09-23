@@ -29,3 +29,4 @@ Start with `01-context.md`, then `02-containers.md`. To run: TUI `bun src/main.t
 - Diagrams are Mermaid in-markdown (GitHub/Confluence render natively).
 - Evidence convention: `path:line` references (e.g. `src/agent/loop.ts:37`). If code moves, update the ref.
 - Add a new ADR for any structural choice (new container, new scope, new trust decision). Copy `adr/000-template.md`.
+- Versioning: bump `package.json` semver with every behavior change (`feat:` → minor, `fix:` → patch); all headers follow automatically via `src/version.ts`. Never hardcode a version string anywhere else.
