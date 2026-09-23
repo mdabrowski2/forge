@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-23
 - **Status:** approved (all 5 sections), awaiting implementation plan
-- **Scope:** `md-marketplace` repo, `plugin-forge` plugin via `forge-src/` typed source. No `plugin-dev` changes. No hand-edits to generated files.
+- **Scope:** `plugin-forge` plugin via `forge-src/` typed source. No `plugin-dev` changes. No hand-edits to generated files.
 - **Intent (carried from sponsor):** agents must cost as little context as possible and be as precise as possible — no agent-do-everything.
 
 ## Background
@@ -31,8 +31,6 @@ Edits, all in `forge-src/`:
 2. `lib/build.ts` — add `["omitClaudeMd", agent.omitClaudeMd]` to `renderAgent`'s frontmatter list. `undefined` is already skipped (as with optional `tools`/`model`), so existing defs render byte-identical output.
 3. `plugin-forge/agents/portabilityAuditor.ts`, `desktopPortabilityAuditor.ts` — add `omitClaudeMd: true` (both classify "omit").
 4. `plugin-forge/plugin.ts` — version bump (build throws on content-change-without-bump).
-
-Blast radius: shared lib with `stepstone-genie`; purely additive-optional. Rebuild diff must show zero changes under `plugins/stepstone-genie/`.
 
 ## Section 3: Piece 2 — scaffold guidance (approved)
 
