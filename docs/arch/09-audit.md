@@ -19,7 +19,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 ## P1 — resilience
 
 - [x] 9. **Provider failure identity** — shipped (Wave 4): turn errors and thrown failures carry `[provider-id]` + setup hint at the single loop boundary (SDK swallows causes, so enrichment happens there); rendered via existing error paths. No session degraded flag — deliberately dropped: unwritten-by-any-reader state rots; the error text is the surface.
-- [ ] 10. **Quest `:3060` assumed, no timeout** (proposed, ~0.5d): hardcoded default URL with no health check. Fix: connectivity probe + timeout + visible degraded badge.
+- [x] 10. **Quest timeout** — shipped (Wave 4): 5s abort timeout (pinned: localhost fail-fast); renderer already rendered degraded states (`quest-tracker not running`), so timeout alone closes it.
 - [x] 11. **Step-budget stop** — shipped (Wave 4): `notice(loop/step-budget-exhausted)` on budget exits only (abort-aware predicate, no misattribution).
 - [x] 12. **Hook isolation** — documented (Wave 4): hooks must be fast and non-blocking (`10-mod-authoring.md` recipe); no async hooks exist so no timeout race is needed.
 
