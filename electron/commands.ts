@@ -32,6 +32,18 @@ export function resolveOpenTarget(p: unknown): string | null {
   return p.trim()
 }
 
+/** external URLs must be http(s); anything else is ignored, never opened. */
+export function isSafeExternalUrl(url: unknown): boolean {
+  return typeof url === "string" && /^https?:\/\//i.test(url)
+}
+
+/** ring-cap helper for the in-memory transcript (durable record is the events file). */
+export const TRANSCRIPT_CAP = 2000
+export function capTranscript<T>(arr: T[]): T[] {
+  if (arr.length > TRANSCRIPT_CAP) arr.splice(0, arr.length - TRANSCRIPT_CAP)
+  return arr
+}
+
 export async function runCommand(text: string, ctx: CommandContext): Promise<CommandResult> {
   const { session, registry } = ctx
   const m = typeof text === "string" ? text.trim().match(/^\/(\S+)\s*([\s\S]*)$/) : null

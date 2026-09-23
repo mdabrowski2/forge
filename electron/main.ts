@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, WebContentsView } from "ele
 import { fileURLToPath } from "url"
 import path from "path"
 import { writeFileSync } from "fs"
-import { runCommand, resolveOpenTarget } from "./commands"
+import { runCommand, resolveOpenTarget, isSafeExternalUrl, capTranscript } from "./commands"
 import { assembleDebugBundle, readTailLines } from "./debug-bundle"
 import { FORGE_VERSION } from "../src/version"
 import { collectBootNotices } from "./boot-notices"
@@ -64,7 +64,7 @@ const sendToUI = (channel: string, ...args: unknown[]) => {
 const pushToUI = (e: TransparencyEvent) => {
   const tagged = { ...e, turn: session.messages.length }
   transcript.push(tagged)
-  if (transcript.length > 2000) transcript.shift()
+  capTranscript(transcript)
   sendToUI("forge:transparency", tagged)
 }
 
@@ -167,7 +167,7 @@ const boot = async () => {
   })) {
     logEvent(n)
     transcript.push(n)
-    if (transcript.length > 2000) transcript.shift()
+    capTranscript(transcript)
   }
   for (const p of providers) harnesses.push(createForgeHarness(p, () => config))
   harnesses.push(createClaudeCodeCliHarness())
@@ -270,7 +270,7 @@ ipcMain.handle("forge:chat", async (_e, text: string) => {
       onTransparency: (e) => {
         appendEvent(session, { ...e, turn })
         transcript.push(e)
-        if (transcript.length > 2000) transcript.shift()
+        capTranscript(transcript)
         sendToUI("forge:transparency", { ...e, turn })
       },
       signal: abortController.signal,
@@ -305,7 +305,7 @@ ipcMain.handle("forge:command", async (_e, text: string) => {
       turn: session.messages.length,
       push: (e) => {
         transcript.push(e)
-        if (transcript.length > 2000) transcript.shift()
+        capTranscript(transcript)
         sendToUI("forge:transparency", e)
       },
     }
@@ -453,6 +453,6 @@ ipcMain.handle("forge:exportDebug", async () => {
 })
 
 ipcMain.handle("forge:openExternal", async (_e, url: unknown) => {
-  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return
-  await shell.openExternal(url)
+  if (!isSafeExternalUrl(url)) return
+  await shell.openExternal(url as string)
 })

@@ -14,7 +14,7 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 - [x] 5. **Mod trust visibility** — shipped (Waves 2+4): boot logs scanned dir; per-mod `trusted` flag (ADR-006, default untrusted) with first-boot warning notice + panel badge; enforcement deliberately out of scope.
 - [x] 6. **Tool path traversal** — shipped (Wave 4): shared `resolveInCwd()` guard (platform-aware, best-effort realpath, fail-closed on leading `..`) on read/write/edit + glob/grep base dirs; patterns/regexes exempt by input-kind; bash explicitly exempt (a shell with a cwd is not a sandbox). Refusals return `Refused:` strings on the existing file-error path.
 - [x] 7. **`openPath` logging** — shipped (Wave 4): every open attempt emits a `shell/openPath` notice (validated first, null-inputs silent).
-- [ ] 8. **Secrets handling** (proposed, ~0.5d): keys only via environment (`ANTHROPIC_API_KEY`, `MUSE_SPARK_*`); system-prompt and transparency `request` events carry full prompt+messages — verify `setConfig` never echoes keys to renderer logs and session files never capture env values. Existing coverage: `scripts/*-test.ts` do not assert this (gap).
+- [x] 8. **Secrets handling** — audited (Wave 4): dummy-key seeded run proves request events + session files carry no key material; mutation notices redact via constructor suite. `config.json` itself holding user keys is by design, not a leak.
 
 ## P1 — resilience
 
@@ -30,6 +30,6 @@ Ranked backlog of proposed fixes (all status `proposed` unless noted). Severity:
 
 ## Quick wins (no design needed, good first tasks)
 
-- [ ] Log `skipped` providers with reasons at Electron boot (TUI already does).
-- [ ] Verify mod `failed` errors surface in the renderer mods panel (today only via `modsForScope` error string).
-- [ ] Document that `getTranscript` (2000-event per-process memory ring) is not durable — the `<id>.events.jsonl` file is the source of truth (now stated in `04-runtime.md`).
+- [x] Log `skipped` providers with reasons at Electron boot — verified present in both boots.
+- [x] Mod `failed` errors surface in the renderer mods panel — verified (`mod-error` row + untrusted badge).
+- [x] Transcript-ring durability documented in `04-runtime.md` — events file is the source of truth.
