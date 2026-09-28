@@ -36,7 +36,7 @@ Mod loader scans entry files (`src/mods/loader.ts:18-51`); the registry stores e
 
 ## Prompt & tools
 
-- `getSystemPrompt()` (`src/agent/prompt.ts:4-37`): current date + OS label + any user-loaded skill texts; instructs the model to prefer surgical edit over full rewrite, read-before-edit, and verify with tools instead of inventing file contents.
+- `getSystemPrompt()` (`src/agent/prompt.ts:4-37`): current date + OS label + any user-loaded skill texts; instructs the model to prefer surgical edit over full rewrite, read-before-edit, and verify with tools instead of inventing file contents; skill sizes ride `getAllSkills()` for panel price tags; per-turn skill sets emit `skills`/`turn-skills` notices.
 - Built-ins: read/write/edit/bash/glob/grep, all scoped to the session cwd with `~/` home expansion.
 
 Read next: `04-runtime.md` (turn sequence + IPC map), `05-data.md` (file layouts).
