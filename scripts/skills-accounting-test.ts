@@ -1,9 +1,9 @@
 // skill accounting verification — run from the forge project root:
 // bun scripts/skills-accounting-test.ts (throws on first failure)
 import { strict as assert } from "node:assert"
-import { rmSync, existsSync, mkdirSync, writeFileSync } from "fs"
+import { rmSync, existsSync } from "fs"
 import { join } from "path"
-import { tmpdir, homedir } from "os"
+import { homedir } from "os"
 import { registry } from "../src/mods/registry"
 import { saveSessionMeta } from "../src/sessions/store"
 import { defaultConfig } from "../src/config"
@@ -22,6 +22,11 @@ const all = registry.getAllSkills()
 assert.strictEqual(all.find((s) => s.name === "s1")?.bytes, 100)
 assert.strictEqual(all.find((s) => s.name === "s1")?.estTokens, 25)
 assert.strictEqual(all.find((s) => s.name === "s2")?.estTokens, 2) // ceil(7/4)
+// byte size is UTF-8, not UTF-16 units: "ab😀" is 4 units but 6 bytes
+registry.registerSkill("m", { name: "uni", description: "du", content: "ab😀" })
+const uni = registry.getAllSkills().find((s) => s.name === "uni")
+assert.strictEqual(uni?.bytes, 6)
+assert.strictEqual(uni?.estTokens, 2) // ceil(6/4)
 
 // event data shape: names + sizes only, never content
 const sid = "skills-accounting-test"
@@ -63,6 +68,12 @@ const e2 = publishNotice("skills-selftest", "t", { v: 1 })
 assert.ok(!("data" in e2 && e2.data !== null && typeof e2.data === "object" && "_suppressedRepeats" in (e2.data as Record<string, unknown>)))
 const e3 = publishNotice("skills-selftest", "t", { v: 2 })
 assert.strictEqual((e3.data as Record<string, unknown>)._suppressedRepeats, 1)
+// empty-set collapse: the always-emit path relies on steady states collapsing
+const q1 = publishNotice("skills-selftest-empty", "t", { skills: [] as unknown[] })
+const q2 = publishNotice("skills-selftest-empty", "t", { skills: [] as unknown[] })
+assert.ok(!(typeof q2.data === "object" && q2.data !== null && "_suppressedRepeats" in (q2.data as Record<string, unknown>)))
+const q3 = publishNotice("skills-selftest-empty", "t", { skills: [{ name: "x", bytes: 1, estTokens: 1 }] })
+assert.strictEqual((q3.data as Record<string, unknown>)._suppressedRepeats, 1)
 // redaction survival: skill names are values, never redacted (notice.ts redacts keys only)
 registry.reset()
 registry.registerSkill("m", { name: "token-vault", description: "d", content: "c" })

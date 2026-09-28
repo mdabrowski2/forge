@@ -156,13 +156,13 @@ class ModRegistry {
   getAllSkills(): { name: string; description: string; modName: string; bytes: number; estTokens: number }[] {
     return [...this.skills.values()]
       .filter(({ modName }) => this.isModEnabled(modName))
-      .map(({ modName, skill }) => ({
-        name: skill.name,
-        description: skill.description,
-        modName,
-        bytes: skill.content.length,
-        estTokens: Math.ceil(skill.content.length / 4),
-      }))
+    .map(({ modName, skill }) => ({
+      name: skill.name,
+      description: skill.description,
+      modName,
+      bytes: Buffer.byteLength(skill.content, "utf8"),
+      estTokens: Math.ceil(Buffer.byteLength(skill.content, "utf8") / 4),
+    }))
   }
 
   /** the content of every skill loaded for the active session — off by
@@ -184,7 +184,7 @@ class ModRegistry {
     if (!loaded.size) return []
     return [...this.skills.values()]
       .filter(({ modName, skill }) => loaded.has(skill.name) && this.isModEnabled(modName))
-      .map(({ skill }) => ({ name: skill.name, bytes: skill.content.length, estTokens: Math.ceil(skill.content.length / 4) }))
+      .map(({ skill }) => ({ name: skill.name, bytes: Buffer.byteLength(skill.content, "utf8"), estTokens: Math.ceil(Buffer.byteLength(skill.content, "utf8") / 4) }))
   }
 
   emitCustom(mod: string, event: CustomEventInput): void {

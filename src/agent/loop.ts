@@ -58,7 +58,9 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
   if (opts.sessionId) registry.setActiveSession({ id: opts.sessionId, cwd: opts.cwd })
   const system = getSystemPrompt()
   const turnSkills = registry.getLoadedSkillMeta()
-  if (turnSkills.length) publishNotice("skills", "turn-skills", { skills: turnSkills }, { push: opts.onTransparency })
+  // always emit: dedup collapses steady states (including steady-empty), so
+  // transitions — including unload-to-zero — stay visible
+  publishNotice("skills", "turn-skills", { skills: turnSkills }, { push: opts.onTransparency })
 
   const runtime: ToolRuntime = {
     cwd: opts.cwd,
