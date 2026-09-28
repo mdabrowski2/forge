@@ -153,10 +153,16 @@ class ModRegistry {
   }
 
   /** for the skills selector panel — excludes skills from a disabled mod */
-  getAllSkills(): { name: string; description: string; modName: string }[] {
+  getAllSkills(): { name: string; description: string; modName: string; bytes: number; estTokens: number }[] {
     return [...this.skills.values()]
       .filter(({ modName }) => this.isModEnabled(modName))
-      .map(({ modName, skill }) => ({ name: skill.name, description: skill.description, modName }))
+      .map(({ modName, skill }) => ({
+        name: skill.name,
+        description: skill.description,
+        modName,
+        bytes: skill.content.length,
+        estTokens: Math.ceil(skill.content.length / 4),
+      }))
   }
 
   /** the content of every skill loaded for the active session — off by
@@ -168,6 +174,17 @@ class ModRegistry {
     return [...this.skills.values()]
       .filter(({ modName, skill }) => loaded.has(skill.name) && this.isModEnabled(modName))
       .map(({ skill }) => skill.content)
+  }
+
+  /** names + sizes of skills loaded for the active session — feeds the
+   * turn-skills transparency event and any future routing decisions */
+  getLoadedSkillMeta(): { name: string; bytes: number; estTokens: number }[] {
+    if (!this.activeSession) return []
+    const loaded = new Set(loadSessionMeta(this.activeSession.id).loadedSkills ?? [])
+    if (!loaded.size) return []
+    return [...this.skills.values()]
+      .filter(({ modName, skill }) => loaded.has(skill.name) && this.isModEnabled(modName))
+      .map(({ skill }) => ({ name: skill.name, bytes: skill.content.length, estTokens: Math.ceil(skill.content.length / 4) }))
   }
 
   emitCustom(mod: string, event: CustomEventInput): void {
