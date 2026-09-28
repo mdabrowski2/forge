@@ -833,6 +833,11 @@ body.hide-sys .t-card.sys {
   font-size: 10px;
 }
 
+.skill-size-badge {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 /* ---- quest tracker modal header ----
    position/size must stay in sync with QUEST_MODAL_MARGIN/QUEST_MODAL_HEADER
    in electron/main.ts, which positions the native WebContentsView below this */

@@ -770,6 +770,11 @@ const makeSkillItem = (skill) => {
   modBadge.textContent = skill.modName
   top.appendChild(name)
   top.appendChild(modBadge)
+  const sizeBadge = document.createElement("span")
+  sizeBadge.className = "skill-size-badge"
+  sizeBadge.textContent = `~${skill.estTokens ?? "?"}t`
+  sizeBadge.title = `${skill.bytes ?? "?"} bytes`
+  top.appendChild(sizeBadge)
   row.appendChild(top)
 
   const desc = document.createElement("div")
