@@ -55,3 +55,23 @@ const metaFile2 = join(homedir(), ".forge", "sessions", `${sid2}.meta.json`)
 if (existsSync(metaFile2)) rmSync(metaFile2)
 registry.reset()
 console.log("section 2 green")
+
+// section 3: repeat-dedup on the event channel itself
+import { publishNotice } from "../src/transparency/notice"
+const e1 = publishNotice("skills-selftest", "t", { v: 1 })
+const e2 = publishNotice("skills-selftest", "t", { v: 1 })
+assert.ok(!("data" in e2 && e2.data !== null && typeof e2.data === "object" && "_suppressedRepeats" in (e2.data as Record<string, unknown>)))
+const e3 = publishNotice("skills-selftest", "t", { v: 2 })
+assert.strictEqual((e3.data as Record<string, unknown>)._suppressedRepeats, 1)
+// redaction survival: skill names are values, never redacted (notice.ts redacts keys only)
+registry.reset()
+registry.registerSkill("m", { name: "token-vault", description: "d", content: "c" })
+const sid3 = "skills-redaction-test"
+registry.setActiveSession({ id: sid3, cwd: "/tmp" })
+saveSessionMeta(sid3, { loadedSkills: ["token-vault"] })
+const ev4 = publishNotice("skills-selftest-2", "t", { skills: registry.getLoadedSkillMeta() })
+assert.strictEqual((ev4.data as { skills: { name: string }[] }).skills[0].name, "token-vault")
+const metaFile3 = join(homedir(), ".forge", "sessions", `${sid3}.meta.json`)
+if (existsSync(metaFile3)) rmSync(metaFile3)
+registry.reset()
+console.log("section 3 green")

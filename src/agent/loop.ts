@@ -5,6 +5,7 @@ import type { ChatMessage } from "../sessions/store"
 import { getSystemPrompt } from "./prompt"
 import { logEvent } from "../transparency/log"
 import type { TransparencyEvent } from "../transparency/types"
+import { publishNotice } from "../transparency/notice"
 import { registry, type ToolRuntime } from "../mods/registry"
 import { createTools } from "./tools"
 import { describeTools } from "./tools/describe"
@@ -56,6 +57,8 @@ export async function runChatTurn(opts: ChatTurnOptions): Promise<ChatTurnResult
   // which skills are loaded for this turn
   if (opts.sessionId) registry.setActiveSession({ id: opts.sessionId, cwd: opts.cwd })
   const system = getSystemPrompt()
+  const turnSkills = registry.getLoadedSkillMeta()
+  if (turnSkills.length) publishNotice("skills", "turn-skills", { skills: turnSkills }, { push: opts.onTransparency })
 
   const runtime: ToolRuntime = {
     cwd: opts.cwd,
