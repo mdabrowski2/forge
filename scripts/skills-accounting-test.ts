@@ -38,3 +38,20 @@ const metaFile = join(homedir(), ".forge", "sessions", `${sid}.meta.json`)
 if (existsSync(metaFile)) rmSync(metaFile)
 registry.reset()
 console.log("section 1 green")
+
+// section 2: inject-once — each loaded skill exactly once, unloaded absent
+registry.reset()
+registry.registerSkill("m", { name: "a", description: "da", content: "ALPHA-CONTENT" })
+registry.registerSkill("m", { name: "b", description: "db", content: "BETA-CONTENT" })
+import { getSystemPrompt } from "../src/agent/prompt"
+const sid2 = "skills-injectonce-test"
+registry.setActiveSession({ id: sid2, cwd: "/tmp" })
+saveSessionMeta(sid2, { loadedSkills: ["a"] })
+const prompt = getSystemPrompt()
+const count = (s: string, sub: string) => s.split(sub).length - 1
+assert.strictEqual(count(prompt, "ALPHA-CONTENT"), 1)
+assert.strictEqual(count(prompt, "BETA-CONTENT"), 0)
+const metaFile2 = join(homedir(), ".forge", "sessions", `${sid2}.meta.json`)
+if (existsSync(metaFile2)) rmSync(metaFile2)
+registry.reset()
+console.log("section 2 green")
