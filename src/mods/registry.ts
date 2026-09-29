@@ -152,17 +152,24 @@ class ModRegistry {
     this.skills.set(skill.name, { modName, skill })
   }
 
+  /** measured cost of a skill body — the single place size math lives, so
+   * getAllSkills (panel price tags) and getLoadedSkillMeta (turn events)
+   * can never drift apart */
+  private skillSize(skill: ModSkill): { bytes: number; estTokens: number } {
+    const bytes = Buffer.byteLength(skill.content, "utf8")
+    return { bytes, estTokens: Math.ceil(bytes / 4) }
+  }
+
   /** for the skills selector panel — excludes skills from a disabled mod */
   getAllSkills(): { name: string; description: string; modName: string; bytes: number; estTokens: number }[] {
     return [...this.skills.values()]
       .filter(({ modName }) => this.isModEnabled(modName))
-    .map(({ modName, skill }) => ({
-      name: skill.name,
-      description: skill.description,
-      modName,
-      bytes: Buffer.byteLength(skill.content, "utf8"),
-      estTokens: Math.ceil(Buffer.byteLength(skill.content, "utf8") / 4),
-    }))
+      .map(({ modName, skill }) => ({
+        name: skill.name,
+        description: skill.description,
+        modName,
+        ...this.skillSize(skill),
+      }))
   }
 
   /** the content of every skill loaded for the active session — off by
@@ -184,7 +191,7 @@ class ModRegistry {
     if (!loaded.size) return []
     return [...this.skills.values()]
       .filter(({ modName, skill }) => loaded.has(skill.name) && this.isModEnabled(modName))
-      .map(({ skill }) => ({ name: skill.name, bytes: Buffer.byteLength(skill.content, "utf8"), estTokens: Math.ceil(Buffer.byteLength(skill.content, "utf8") / 4) }))
+      .map(({ skill }) => ({ name: skill.name, ...this.skillSize(skill) }))
   }
 
   emitCustom(mod: string, event: CustomEventInput): void {
