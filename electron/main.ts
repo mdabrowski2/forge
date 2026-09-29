@@ -15,6 +15,7 @@ import { findRepoRoot, loadRepoConfig, saveRepoConfig } from "../src/repo-config
 import { listMods, loadMods, modsDir } from "../src/mods/loader"
 import type { ModLoadResult } from "../src/mods/loader"
 import { loadQuestPreview, loadPrPreview } from "./previews"
+import { inheritShellEnv } from "../src/integrations/shell-env"
 import { createForgeHarness } from "../src/harness/forge-harness"
 import { resolveProviders } from "../src/providers/registry"
 import { createClaudeCodeCliHarness } from "../src/harness/claude-code-cli-harness"
@@ -140,6 +141,18 @@ const closeQuestTrackerView = () => {
 }
 
 const boot = async () => {
+  // GUI-launched apps inherit launchd's minimal env (no shell PATH, no user
+  // credentials), which breaks every child process (bb CLI, bash tool, mod
+  // CLIs). Reconstruct the login shell env first — fill-missing-only, except
+  // PATH which unions (a thin-but-present GUI PATH must still be enriched).
+  // A terminal launch (already rich) is nearly a no-op. Fail-open by design.
+  const shellPatch = await inheritShellEnv()
+  if (Object.keys(shellPatch).length) {
+    Object.assign(process.env, shellPatch)
+    console.log(`[env] inherited ${Object.keys(shellPatch).length} vars from login shell`)
+  } else {
+    console.error("[env] login-shell inheritance produced nothing; continuing with process env")
+  }
   config = loadConfig()
 
   modLoadResult = await loadMods(config)
