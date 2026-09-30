@@ -18,7 +18,7 @@ console.log("section 1 green")
 
 // section 2: the system path still reaches forge.log (audit trail preserved)
 import { publishNotice } from "../src/transparency/notice"
-import { readFileSync, statSync } from "fs"
+import { readFileSync, statSync, rmSync, existsSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 const logPath = join(homedir(), ".forge", "logs", "forge.log")
@@ -29,3 +29,26 @@ assert.ok(after > before, "system-path notice must still append to forge.log")
 const tail = readFileSync(logPath, "utf8").slice(-400)
 assert.ok(tail.includes("turn-skills"), "log tail contains the system event")
 console.log("section 2 green")
+
+// section 3 (soak): system-sink-less notices never reach the session file.
+// this pins the sink-withholding contract; the handler-filter half is pinned
+// by section 1's unit tests plus typecheck — both halves stated explicitly.
+import { appendEvent, loadEvents, newSession } from "../src/sessions/store"
+const soak = newSession("m", "/tmp")
+for (let i = 0; i < 5; i++) {
+  publishNotice("integrations", "pr-preview-error", { error: "boom" })
+  publishNotice("boot", "mods.loaded", { loaded: [] })
+}
+appendEvent(soak, { type: "chunk", callId: "c", text: "t", timestamp: 1, turn: 0 } as never)
+const evts = loadEvents(soak.id)
+assert.ok(evts.length >= 1, "control turn event persisted")
+assert.ok(
+  !evts.some((e) => {
+    const s = (e as { source?: string }).source
+    return s === "integrations" || s === "boot"
+  }),
+  "no system sources in session file"
+)
+const soakFile = join(homedir(), ".forge", "sessions", `${soak.id}.events.jsonl`)
+if (existsSync(soakFile)) rmSync(soakFile)
+console.log("section 3 green")
