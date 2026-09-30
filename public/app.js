@@ -820,6 +820,51 @@ $("skills-close").addEventListener("click", () => {
   $("skills-toggle").classList.remove("active")
 })
 
+// ---- system log panel -------------------------------------------------------
+// Dedicated surface for system-channel events (integration, boot,
+// composition). Complements the chat feed's sess/sys filter: hiding sys
+// cards there never loses them here, and this panel replays the system
+// ring on open (the chat replay only sees session-persisted events).
+const renderSystemLog = (events) => {
+  const list = $("system-list")
+  list.innerHTML = ""
+  if (!events.length) list.textContent = "no system notices yet"
+  else for (const e of events.slice(-200)) {
+    const row = document.createElement("div")
+    row.className = "skill-item"
+    row.textContent = `[${e.source ?? "?"}] ${e.name ?? e.type}`
+    try {
+      row.title = JSON.stringify(e.data ?? e).slice(0, 300)
+    } catch {
+      row.title = "(unserializable)"
+    }
+    list.appendChild(row)
+  }
+}
+
+const refreshSystemLog = async () => {
+  try {
+    renderSystemLog(await window.forge.getSystemLog())
+  } catch {
+    /* system ring is best-effort; forge.log remains the durable record */
+  }
+}
+
+$("system-toggle").addEventListener("click", async () => {
+  $("system-panel").classList.remove("hidden")
+  $("system-toggle").classList.add("active")
+  await refreshSystemLog()
+})
+
+$("system-close").addEventListener("click", () => {
+  $("system-panel").classList.add("hidden")
+  $("system-toggle").classList.remove("active")
+})
+
+const onSystemLog = (event) => {
+  if (!$("system-panel").classList.contains("hidden")) refreshSystemLog()
+}
+
 // ---- settings panel ---------------------------------------------------------
 
 let draftConfig = null
@@ -1110,19 +1155,9 @@ const closePrModal = () => $("pr-modal").classList.add("hidden")
 
 $("pr-modal-close").addEventListener("click", closePrModal)
 
-const refreshPrPreview = async () => {
+const renderPrList = (prs) => {
   const list = $("pr-preview-list")
-  const res = await window.forge.getPrInboxPreview()
-  list.innerHTML = ""
-  if (!res.ok) {
-    list.textContent = "bb not reachable"
-    return
-  }
-  if (!res.prs.length) {
-    list.textContent = "nothing needs attention"
-    return
-  }
-  for (const pr of res.prs) {
+  for (const pr of prs) {
     const row = document.createElement("div")
     row.className = "pr-preview-item clickable"
 
@@ -1145,24 +1180,36 @@ const refreshPrPreview = async () => {
   }
 }
 
+let lastGoodPrs = null
+const refreshPrPreview = async () => {
+  const list = $("pr-preview-list")
+  const res = await window.forge.getPrInboxPreview()
+  list.innerHTML = ""
+  if (!res.ok) {
+    if (lastGoodPrs) {
+      renderPrList(lastGoodPrs)
+      appendStaleMarker(list)
+      return
+    }
+    list.textContent = "bb not reachable"
+    return
+  }
+  lastGoodPrs = res.prs.length ? res.prs : lastGoodPrs
+  if (!res.prs.length) {
+    list.textContent = "nothing needs attention"
+    return
+  }
+  renderPrList(res.prs)
+}
+
 refreshPrPreview()
 setInterval(refreshPrPreview, 30000)
 
 // ---- quest preview widget --------------------------------------------------
 
-const refreshQuestPreview = async () => {
+const renderQuestList = (quests) => {
   const list = $("quest-preview-list")
-  const res = await window.forge.getQuestPreview()
-  list.innerHTML = ""
-  if (!res.ok) {
-    list.textContent = "quest-tracker not running"
-    return
-  }
-  if (!res.quests.length) {
-    list.textContent = "no active quests"
-    return
-  }
-  for (const q of res.quests) {
+  for (const q of quests) {
     const row = document.createElement("div")
     row.className = "quest-preview-item"
     const dot = document.createElement("span")
@@ -1175,6 +1222,35 @@ const refreshQuestPreview = async () => {
     row.appendChild(title)
     list.appendChild(row)
   }
+}
+
+const appendStaleMarker = (list) => {
+  const stale = document.createElement("div")
+  stale.className = "stale-marker"
+  stale.textContent = "stale — retrying"
+  list.appendChild(stale)
+}
+
+let lastGoodQuests = null
+const refreshQuestPreview = async () => {
+  const list = $("quest-preview-list")
+  const res = await window.forge.getQuestPreview()
+  list.innerHTML = ""
+  if (!res.ok) {
+    if (lastGoodQuests) {
+      renderQuestList(lastGoodQuests)
+      appendStaleMarker(list)
+      return
+    }
+    list.textContent = "quest-tracker not running"
+    return
+  }
+  lastGoodQuests = res.quests.length ? res.quests : lastGoodQuests
+  if (!res.quests.length) {
+    list.textContent = "no active quests"
+    return
+  }
+  renderQuestList(res.quests)
 }
 
 const closeQuestModal = () => {
@@ -1297,6 +1373,7 @@ const boot = async () => {
 
   // live transparency events only (history lives in ~/.forge/logs/forge.log)
   window.forge.onTransparency(onTransparency)
+  if (window.forge.onSystemLog) window.forge.onSystemLog(onSystemLog)
 
   input.focus()
 }

@@ -838,6 +838,12 @@ body.hide-sys .t-card.sys {
   font-size: 10px;
 }
 
+.stale-marker {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: italic;
+}
+
 /* ---- quest tracker modal header ----
    position/size must stay in sync with QUEST_MODAL_MARGIN/QUEST_MODAL_HEADER
    in electron/main.ts, which positions the native WebContentsView below this */
@@ -866,6 +872,7 @@ body.hide-sys .t-card.sys {
 
 /* ---- mods panel ---- */
 #skills-panel,
+#system-panel,
 #pr-modal,
 #settings-panel {
   position: fixed;
