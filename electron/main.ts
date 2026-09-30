@@ -8,6 +8,7 @@ import { FORGE_VERSION } from "../src/version"
 import { collectBootNotices } from "./boot-notices"
 import { logEvent, logFile } from "../src/transparency/log"
 import { publishNotice, truncateNotice } from "../src/transparency/notice"
+import { isSystemEvent } from "../src/transparency/scope"
 import { traceMutation } from "./mutations"
 import { defaultConfig, loadConfig, saveConfig } from "../src/config"
 import type { ForgeConfig, ModConfig } from "../src/config"
@@ -51,6 +52,7 @@ let abortController: AbortController | null = null
 let config: ForgeConfig = defaultConfig()
 let modLoadResult: ModLoadResult = { loaded: [], failed: [], dir: modsDir }
 const transcript: TransparencyEvent[] = []
+const systemTranscript: TransparencyEvent[] = []
 
 // every renderer send funnels here: a non-null win can still be destroyed
 // (window closed, app alive on macOS) and send() then throws inside the
@@ -67,6 +69,11 @@ const pushToUI = (e: TransparencyEvent) => {
   transcript.push(tagged)
   capTranscript(transcript)
   sendToUI("forge:transparency", tagged)
+}
+const pushSystemToUI = (e: TransparencyEvent) => {
+  systemTranscript.push(e)
+  capTranscript(systemTranscript)
+  sendToUI("forge:system-log", e)
 }
 
 // restores whichever model/harness a session last used, so switching
@@ -179,8 +186,8 @@ const boot = async () => {
     untrusted,
   })) {
     logEvent(n)
-    transcript.push(n)
-    capTranscript(transcript)
+    systemTranscript.push(n)
+    capTranscript(systemTranscript)
   }
   for (const p of providers) harnesses.push(createForgeHarness(p, () => config))
   harnesses.push(createClaudeCodeCliHarness())
@@ -281,6 +288,12 @@ ipcMain.handle("forge:chat", async (_e, text: string) => {
       sessionId: session.id,
       onDelta: (d) => sendToUI("forge:delta", d),
       onTransparency: (e) => {
+        if (isSystemEvent(e)) {
+          systemTranscript.push(e)
+          capTranscript(systemTranscript)
+          sendToUI("forge:system-log", e)
+          return
+        }
         appendEvent(session, { ...e, turn })
         transcript.push(e)
         capTranscript(transcript)
@@ -327,6 +340,7 @@ ipcMain.handle("forge:command", async (_e, text: string) => {
 })
 
 ipcMain.handle("forge:getTranscript", () => transcript)
+ipcMain.handle("forge:getSystemLog", () => systemTranscript)
 
 ipcMain.handle("forge:skills", () => {
   const loaded = new Set(loadSessionMeta(session.id).loadedSkills ?? [])
@@ -391,7 +405,7 @@ ipcMain.handle("forge:modsForScope", (_e, scope: ModScope) => {
 ipcMain.handle("forge:setModScopedEnabled", (_e, scope: ModScope, dirName: string, enabled: boolean | undefined) => {
   const before = getScopedMods(scope)[dirName]?.enabled
   saveScopedMod(scope, dirName, { enabled })
-  traceMutation("mods", `${dirName}(${scope}).enabled`, before, enabled, { session, push: pushToUI })
+  traceMutation("mods", `${dirName}(${scope}).enabled`, before, enabled, { push: pushSystemToUI })
   return true
 })
 
@@ -404,7 +418,7 @@ ipcMain.handle("forge:setModScopedSettings", (_e, scope: ModScope, dirName: stri
   }
   const before = getScopedMods(scope)[dirName]?.settings ?? {}
   saveScopedMod(scope, dirName, { settings })
-  traceMutation("mods", `${dirName}(${scope}).settings`, before, settings, { session, push: pushToUI })
+  traceMutation("mods", `${dirName}(${scope}).settings`, before, settings, { push: pushSystemToUI })
   return { ok: true }
 })
 
@@ -419,13 +433,13 @@ ipcMain.handle("forge:setConfig", (_e, next: ForgeConfig) => {
   const before = config
   config = next
   saveConfig(config)
-  traceMutation("config", "providers", before, config, { session, push: pushToUI })
+  traceMutation("config", "providers", before, config, { push: pushSystemToUI })
   return { ok: true }
 })
 
-ipcMain.handle("forge:questPreview", () => loadQuestPreview({ session, push: pushToUI }))
+ipcMain.handle("forge:questPreview", () => loadQuestPreview({ push: pushSystemToUI }))
 
-ipcMain.handle("forge:prInboxPreview", () => loadPrPreview({ session, push: pushToUI }))
+ipcMain.handle("forge:prInboxPreview", () => loadPrPreview({ push: pushSystemToUI }))
 
 ipcMain.handle("forge:openQuestTracker", () => openQuestTrackerView())
 

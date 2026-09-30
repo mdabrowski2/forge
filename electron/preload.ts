@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("forge", {
   getSystemPrompt: () => ipcRenderer.invoke("forge:getSystemPrompt"),
   command: (text: string) => ipcRenderer.invoke("forge:command", text),
   getTranscript: () => ipcRenderer.invoke("forge:getTranscript"),
+  getSystemLog: () => ipcRenderer.invoke("forge:getSystemLog"),
+  onSystemLog: (cb: (event: unknown) => void) =>
+    ipcRenderer.on("forge:system-log", (_e, event) => cb(event)),
   openPath: (p: string) => ipcRenderer.invoke("forge:openPath", p),
   openExternal: (url: string) => ipcRenderer.invoke("forge:openExternal", url),
   onTransparency: (cb: (event: unknown) => void) =>
