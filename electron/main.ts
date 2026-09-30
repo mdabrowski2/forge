@@ -464,6 +464,7 @@ ipcMain.handle("forge:exportDebug", async () => {
     logTail: readTailLines(logFile),
     messages: session.messages.slice(-100),
     events: loadEvents(session.id),
+    systemLog: systemTranscript.slice(-50),
   })
   const picked = await dialog.showSaveDialog({
     defaultPath: path.join(app.getPath("downloads"), `forge-debug-${Date.now()}.md`),

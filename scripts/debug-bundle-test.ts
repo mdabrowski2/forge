@@ -17,8 +17,9 @@ const bundle = assembleDebugBundle({
   logTail: ["l1", "l2", "l3"],
   messages: [],
   events: [],
+  systemLog: [{ type: "notice", source: "boot", name: "mods.loaded" }],
 })
-for (const h of ["## Environment", "## Providers", "## Mods", "## Config (redacted)", "## Session messages", "## Session events", "## Log tail"]) {
+for (const h of ["## Environment", "## Providers", "## Mods", "## Config (redacted)", "## Session messages", "## Session events", "## Log tail", "## System log"]) {
   if (!bundle.includes(h)) fail("missing section: " + h)
 }
 if (!bundle.includes("9.9.9-test")) fail("version missing")

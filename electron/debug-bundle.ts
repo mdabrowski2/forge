@@ -16,6 +16,8 @@ export interface DebugBundleDeps {
   logTail: string[]
   messages: ChatMessage[]
   events: unknown[]
+  /** system-channel ring tail — relocated (not lost) session-excluded evidence */
+  systemLog: unknown[]
 }
 
 const DISCLAIMER = "> Review before sharing — conversation text is included verbatim; only config/provider credentials are redacted.";
@@ -67,6 +69,7 @@ export function assembleDebugBundle(d: DebugBundleDeps): string {
     section("Config (redacted)", asJson(redactValue(d.config))),
     section("Session messages", messages),
     section("Session events", asJson(d.events)),
+    section("System log", asJson(d.systemLog.slice(-50))),
     section("Log tail", d.logTail.join("\n") || "(none)"),
   ].join("\n")
 }
