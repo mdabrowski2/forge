@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Work in `/Users/dabrom01/Projects/forge`; run scripts from the repo root with `bun`; typecheck with `bun run typecheck`.
+- Work in `<forge-root>`; run scripts from the repo root with `bun`; typecheck with `bun run typecheck`.
 - Test scripts assert with `node:assert` (throw on failure, non-zero exit).
 - Test side effects limited to `~/.forge` (session files cleaned up; `forge.log` appends harmless) — precedent `scripts/mods-test.ts`.
 - Version bump `package.json` 0.6.0 → 0.7.0 (`feat:` → minor per repo rule).

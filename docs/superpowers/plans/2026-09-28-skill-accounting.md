@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Work in `/Users/dabrom01/Projects/forge`; run scripts from the repo root with `bun`; typecheck with `bun run typecheck` (`tsc --noEmit`).
+- Work in `<forge-root>`; run scripts from the repo root with `bun`; typecheck with `bun run typecheck` (`tsc --noEmit`).
 - Test scripts assert with `node:assert` (throw on failure, non-zero exit) — stronger than the `console.log`-boolean convention in `scripts/mods-test.ts`, stated deliberately.
 - Test side effects are limited to `~/.forge` (session meta files, cleaned up like `mods-test.ts` does; `forge.log` appends are harmless and not cleaned).
 - `estTokens = Math.ceil(bytes / 4)`, always labeled an estimate everywhere it surfaces (`~{n}t`, byte-exact title).

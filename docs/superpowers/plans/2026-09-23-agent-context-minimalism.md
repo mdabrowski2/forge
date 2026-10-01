@@ -12,12 +12,12 @@
 
 ## Global Constraints
 
-- All edits in `forge-src/` under `/Users/dabrom01/Projects/md-marketplace/` — never hand-edit generated files under `plugins/`.
+- All edits in `forge-src/` under `<md-marketplace-root>/` — never hand-edit generated files under `plugins/`.
 - Version bump in `forge-src/plugin-forge/plugin.ts` is mandatory with any content change (build throws otherwise).
 - `npx tsc --noEmit` and `npx eslint .` (from `forge-src/`) must be clean before trusting any build.
 - `omitClaudeMd` requires Claude Code 2.1.271+ and is silently ignored below that — emit unconditionally.
 - Commit only on explicit user confirmation (plugin-forge's own step-9 convention applies to itself).
-- Work from repo root `/Users/dabrom01/Projects/md-marketplace/` unless a step says otherwise.
+- Work from repo root `<md-marketplace-root>/` unless a step says otherwise.
 
 ## Review Focus
 
@@ -32,8 +32,8 @@
 ### Task 1: lib support — `AgentDef.omitClaudeMd` + render line
 
 **Files:**
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/lib/types.ts` (add one field after line 16)
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/lib/build.ts` (add one entry in `renderAgent`, lines 43–49)
+- Modify: `<md-marketplace-root>/forge-src/lib/types.ts` (add one field after line 16)
+- Modify: `<md-marketplace-root>/forge-src/lib/build.ts` (add one entry in `renderAgent`, lines 43–49)
 
 **Interfaces:**
 - Consumes: nothing (foundation task; `renderFrontmatter` already skips `undefined` and renders booleans — verified at `build.ts:29`, `build.ts:32-33`).
@@ -77,9 +77,9 @@ git commit -m "feat: support omitClaudeMd in agent frontmatter rendering"
 ### Task 2: Auditor flags + version bump
 
 **Files:**
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/agents/portabilityAuditor.ts` (line 13)
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/agents/desktopPortabilityAuditor.ts` (line 13)
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/plugin.ts` (line 5)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/agents/portabilityAuditor.ts` (line 13)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/agents/desktopPortabilityAuditor.ts` (line 13)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/plugin.ts` (line 5)
 
 **Interfaces:**
 - Consumes: `AgentDef.omitClaudeMd` from Task 1.
@@ -127,8 +127,8 @@ git commit -m "feat: omitClaudeMd on portability auditors, bump to 0.5.1"
 ### Task 3: PORT-11 checklist item + range-string fix
 
 **Files:**
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/portability-checks.source.md` (append after line 83)
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/agents/desktopPortabilityAuditor.body.md` (line 13)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/portability-checks.source.md` (append after line 83)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/agents/desktopPortabilityAuditor.body.md` (line 13)
 
 **Interfaces:**
 - Consumes: nothing new (prose task; rendered via existing `checklist.ts` passthrough).
@@ -167,7 +167,7 @@ git commit -m "feat: PORT-11 check for unneeded CLAUDE.md autoload in agents"
 ### Task 4: Scaffold-guidance prose in the skill body
 
 **Files:**
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/skills/pluginForgeSkill.body.md` (insert after line 82; insert after line 106)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/skills/pluginForgeSkill.body.md` (insert after line 82; insert after line 106)
 
 **Interfaces:**
 - Consumes: the decision rule (spec Section 1, restated inline — no import; prose file).
@@ -207,7 +207,7 @@ git commit -m "feat: context-minimalism guidance for scaffolded and transformed 
 
 - [ ] **Step 1: Rebuild**
 
-Run: `npx tsx forge-src/build.ts plugin-forge` (from repo root `/Users/dabrom01/Projects/md-marketplace/`)
+Run: `npx tsx forge-src/build.ts plugin-forge` (from repo root `<md-marketplace-root>/`)
 Expected: success, no version-drift throw.
 
 - [ ] **Step 2: Verify the exact diff**

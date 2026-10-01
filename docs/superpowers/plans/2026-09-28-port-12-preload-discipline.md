@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- All edits in `forge-src/` under `/Users/dabrom01/Projects/md-marketplace/` — never hand-edit generated files under `plugins/`.
+- All edits in `forge-src/` under `<md-marketplace-root>/` — never hand-edit generated files under `plugins/`.
 - Version bump in `forge-src/plugin-forge/plugin.ts` 0.5.1 → 0.5.2 is mandatory (build throws otherwise).
 - `npx tsc --noEmit` and `npx eslint .` (from `forge-src/`) clean before trusting any build. (`npx eslint` may not resolve the hoisted root binary — use `../node_modules/.bin/eslint .`, same tool, established in wave 1.)
 - Commit generated output only on explicit user confirmation.
@@ -31,7 +31,7 @@
 ### Task 1: PORT-12 checklist item + range fixes
 
 **Files:**
-- Modify: `/Users/dabrom01/Projects/md-marketplace/forge-src/plugin-forge/portability-checks.source.md` (append after PORT-11 block)
+- Modify: `<md-marketplace-root>/forge-src/plugin-forge/portability-checks.source.md` (append after PORT-11 block)
 - Modify: `.../agents/desktopPortabilityAuditor.body.md` (`PORT-01..11` → `PORT-01..12`)
 - Modify: `.../commands/portabilitySweep.body.md` (same range fix)
 - Modify: `.../skills/pluginForgeSkill.body.md` (same range fix)
